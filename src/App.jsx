@@ -457,8 +457,8 @@ function Board({ title, items, selectedId, onSelect, onContext, onToggleContact 
 
           <thead>
             <tr>
-              <th>열차</th>
-              <th>도착</th>
+              <th>열차번호</th>
+              <th>도착시간</th>
               <th>승하차</th>
               <th>좌석</th>
               <th>분류</th>
