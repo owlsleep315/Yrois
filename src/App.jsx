@@ -97,7 +97,6 @@ const emptyForm = {
   destination: "",
   manager: "",
   memo: "",
-  transfer: "",
 };
 
 export default function App() {
@@ -217,15 +216,6 @@ export default function App() {
       return;
     }
 
-    if (!form.carNo || Number(form.carNo) < 1 || Number(form.carNo) > 18) {
-      alert("호차는 1부터 18까지만 입력할 수 있습니다.");
-      return;
-    }
-
-    if (form.boarding === "승차" && form.type !== "유실물" && form.type !== "역물품" && !form.seatNo) {
-      alert("승차 건은 좌석번호를 입력해야 합니다.");
-      return;
-    }
 
     const payload = {
       ...form,
@@ -381,9 +371,6 @@ export default function App() {
               <input value={form.manager} onChange={(e) => updateForm("manager", e.target.value)} />
             </Field>
 
-            <Field label="환승정보">
-              <input value={form.transfer} onChange={(e) => updateForm("transfer", e.target.value)} />
-            </Field>
 
             <Field label="비고">
               <input value={form.memo} onChange={(e) => updateForm("memo", e.target.value)} />
@@ -448,7 +435,6 @@ function Board({ title, items, selectedId, onSelect, onContext, onToggleContact 
             <col style={{ width: "10%" }} />
             <col style={{ width: "7%" }} />
             <col style={{ width: "13%" }} />
-            <col style={{ width: "18%" }} />
           </colgroup>
 
           <thead>
@@ -461,7 +447,6 @@ function Board({ title, items, selectedId, onSelect, onContext, onToggleContact 
               <th>도착역</th>
               <th>담당자</th>
               <th>상태</th>
-              <th>환승정보</th>
               <th>비고</th>
             </tr>
           </thead>
@@ -469,7 +454,7 @@ function Board({ title, items, selectedId, onSelect, onContext, onToggleContact 
           <tbody>
             {items.length === 0 && (
               <tr>
-                <td className="empty-row" colSpan="10">등록된 승하차보조 건이 없습니다.</td>
+                <td className="empty-row" colSpan="9">등록된 승하차보조 건이 없습니다.</td>
               </tr>
             )}
 
@@ -502,7 +487,6 @@ function Board({ title, items, selectedId, onSelect, onContext, onToggleContact 
                     <span className="contact empty">-</span>
                   )}
                 </td>
-                <td><span className="small-text">{item.transfer || "-"}</span></td>
                 <td><span className="small-text">{item.memo || "-"}</span></td>
               </tr>
             ))}
