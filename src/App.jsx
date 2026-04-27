@@ -1,486 +1,514 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
-import './App.css'
+import { useEffect, useMemo, useState } from "react";
+import "./App.css";
 
-const STORAGE_KEY = 'korail-assist-json-v1'
-const CSV_STORAGE_KEY = 'korail-assist-csv-v1'
+const TRAIN_TIMES = {
+  "102": "09:15",
+  "214": "10:42",
+  "1004": "11:10",
+  "1531": "10:58",
+  "505": "12:21",
+  "1401": "13:05",
+  "302": "14:20",
+  "703": "15:40",
+};
 
-const TRAIN_SCHEDULE = {
-  102: '09:15',
-  214: '10:42',
-  505: '12:21',
-  1004: '11:10',
-  1531: '10:58',
-  707: '13:35',
-  1302: '14:20',
-  2111: '15:40',
-  600: '16:05',
-  1443: '17:08',
+const TYPES = ["리프트", "휠프트", "휠필", "시각(남)", "시각(여)", "유실물", "역물품"];
+const BOARDING_TYPES = ["승차", "하차"];
+
+function getTodayKey() {
+  return new Date().toISOString().slice(0, 10);
 }
 
-const CATEGORIES = ['리프트', '휠프트', '휠필', '시각(남)', '시각(여)', '유실물', '역물품']
-const BOARDING_TYPES = ['승차', '하차']
-const EXCLUDED_CSV_CATEGORIES = new Set(['유실물', '역물품'])
-
-const pad2 = (v) => String(v).padStart(2, '0')
-const formatDateKey = (date) => `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`
-const formatTime = (date) => `${pad2(date.getHours())}:${pad2(date.getMinutes())}`
-const getDirection = (trainNo) => (Number(trainNo) % 2 === 0 ? '상선' : '하선')
-
-const formatDisplayDate = (date) => {
-  const dayNames = ['일요일', '월요일', '화요일', '수요일', '목요일', '금요일', '토요일']
-  return `${formatDateKey(date)} ${dayNames[date.getDay()]}`
+function formatDateLabel(dateKey) {
+  const date = new Date(`${dateKey}T00:00:00`);
+  const weekdays = ["일요일", "월요일", "화요일", "수요일", "목요일", "금요일", "토요일"];
+  return `${dateKey} ${weekdays[date.getDay()]}`;
 }
 
-const parseArrivalDateTime = (dateKey, arrivalTime) => {
-  const [year, month, day] = dateKey.split('-').map(Number)
-  const [hour, minute] = arrivalTime.split(':').map(Number)
-  return new Date(year, month - 1, day, hour, minute, 0, 0)
+function addDate(dateKey, amount) {
+  const date = new Date(`${dateKey}T00:00:00`);
+  date.setDate(date.getDate() + amount);
+  return date.toISOString().slice(0, 10);
 }
 
-const buildSeatDisplay = (item) => {
-  const coach = Number(item.coach)
-  const coachCircle = Number.isInteger(coach) && coach >= 1 && coach <= 18 ? String.fromCodePoint(9311 + coach) : ''
-  return `${coachCircle}${item.seat ? ` ${item.seat}` : ''}`.trim()
+function getDirection(trainNo) {
+  return Number(trainNo) % 2 === 0 ? "up" : "down";
+}
+
+function getSeatDisplay(carNo, seatNo) {
+  if (!carNo) return "-";
+  return (
+    <>
+      <span className="circle">{carNo}</span>
+      {seatNo && <span className="seat-no">{seatNo}</span>}
+    </>
+  );
+}
+
+function isCsvTarget(item) {
+  return item.type !== "유실물" && item.type !== "역물품";
+}
+
+function makeCsv(items, dateKey) {
+  const headers = ["날짜", "열차번호", "도착시간", "승하차", "좌석", "분류", "도착역", "비고"];
+  const rows = items.filter(isCsvTarget).map((item) => [
+    dateKey,
+    item.trainNo,
+    item.arrivalTime,
+    item.boarding,
+    `${item.carNo || ""}${item.seatNo ? `-${item.seatNo}` : ""}`,
+    item.type,
+    item.destination,
+    item.memo,
+  ]);
+
+  return [headers, ...rows]
+    .map((row) => row.map((v) => `"${String(v ?? "").replaceAll('"', '""')}"`).join(","))
+    .join("\n");
+}
+
+function saveOffline(dateKey, items) {
+  localStorage.setItem(`korail-json-${dateKey}`, JSON.stringify(items));
+  localStorage.setItem(`korail-csv-${dateKey}`, makeCsv(items, dateKey));
+
+  // Electron preload에서 window.korailAPI.saveData를 연결하면 실제 파일 저장 가능
+  if (window.korailAPI?.saveData) {
+    window.korailAPI.saveData({
+      date: dateKey,
+      json: items,
+      csv: makeCsv(items, dateKey),
+    });
+  }
+}
+
+function loadOffline(dateKey) {
+  const raw = localStorage.getItem(`korail-json-${dateKey}`);
+  return raw ? JSON.parse(raw) : [];
 }
 
 const emptyForm = {
   id: null,
-  trainNo: '',
-  arrivalTime: '',
-  boardingType: '승차',
-  coach: '',
-  seat: '',
-  category: '리프트',
-  destination: '',
-  manager: '',
-  note: '',
-  transferInfo: '',
-  contacted: false,
-}
+  trainNo: "",
+  arrivalTime: "",
+  boarding: "승차",
+  carNo: "",
+  seatNo: "",
+  type: "리프트",
+  destination: "",
+  manager: "",
+  memo: "",
+  transfer: "",
+};
 
-function App() {
-  const [todayNow, setTodayNow] = useState(new Date())
-  const [selectedDate, setSelectedDate] = useState(new Date())
-  const [allData, setAllData] = useState(() => {
-    const saved = localStorage.getItem(STORAGE_KEY)
-    if (!saved) return {}
-    try {
-      return JSON.parse(saved)
-    } catch {
-      return {}
-    }
-  })
-  const [form, setForm] = useState(emptyForm)
-  const [selectedRowId, setSelectedRowId] = useState(null)
-  const [contextMenu, setContextMenu] = useState(null)
-  const [isFullscreen, setIsFullscreen] = useState(false)
-
-  const selectedDateKey = useMemo(() => formatDateKey(selectedDate), [selectedDate])
+export default function App() {
+  const [dateKey, setDateKey] = useState(getTodayKey());
+  const [items, setItems] = useState([]);
+  const [form, setForm] = useState(emptyForm);
+  const [selectedId, setSelectedId] = useState(null);
+  const [fullscreenBoard, setFullscreenBoard] = useState(false);
+  const [contextMenu, setContextMenu] = useState(null);
+  const [, forceTick] = useState(0);
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(allData))
-    saveCsvSnapshot(allData)
-  }, [allData])
+    setItems(loadOffline(dateKey));
+    setSelectedId(null);
+    setForm(emptyForm);
+  }, [dateKey]);
 
   useEffect(() => {
-    const timer = setInterval(() => setTodayNow(new Date()), 30_000)
-    return () => clearInterval(timer)
-  }, [])
-
-  const removeItem = useCallback((id) => {
-    setAllData((prev) => ({
-      ...prev,
-      [selectedDateKey]: (prev[selectedDateKey] ?? []).filter((item) => item.id !== id),
-    }))
-    if (selectedRowId === id) {
-      setSelectedRowId(null)
-      setForm(emptyForm)
-    }
-    setContextMenu(null)
-  }, [selectedDateKey, selectedRowId])
+    saveOffline(dateKey, items);
+  }, [items, dateKey]);
 
   useEffect(() => {
-    const onKeyDown = (event) => {
-      if (event.key.toLowerCase() === 'f') {
-        event.preventDefault()
-        if (!document.fullscreenElement) {
-          document.documentElement.requestFullscreen().catch(() => {})
-        }
+    const timer = setInterval(() => {
+      forceTick((v) => v + 1);
+
+      const now = new Date();
+      setItems((prev) =>
+        prev.filter((item) => {
+          const trainTime = new Date(`${dateKey}T${item.arrivalTime}:00`);
+          const diffMin = (now - trainTime) / 60000;
+          return diffMin < 30 || dateKey !== getTodayKey();
+        })
+      );
+    }, 30000);
+
+    return () => clearInterval(timer);
+  }, [dateKey]);
+
+  useEffect(() => {
+    const onKeyDown = (e) => {
+      if (e.key.toLowerCase() === "f") {
+        setFullscreenBoard(true);
+        document.documentElement.requestFullscreen?.();
       }
-      if (event.key === 'Delete' && selectedRowId) {
-        removeItem(selectedRowId)
+
+      if (e.key === "Escape") {
+        setFullscreenBoard(false);
+        document.exitFullscreen?.();
       }
-      if (event.key === 'Escape' && document.fullscreenElement) {
-        document.exitFullscreen().catch(() => {})
+
+      if (e.key === "Delete" && selectedId) {
+        setItems((prev) => prev.filter((item) => item.id !== selectedId));
+        setSelectedId(null);
+        setForm(emptyForm);
       }
-    }
+    };
 
-    const onFullscreenChange = () => {
-      setIsFullscreen(Boolean(document.fullscreenElement))
-    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [selectedId]);
 
-    window.addEventListener('keydown', onKeyDown)
-    document.addEventListener('fullscreenchange', onFullscreenChange)
+  const visibleItems = useMemo(() => {
+    const now = new Date();
 
-    return () => {
-      window.removeEventListener('keydown', onKeyDown)
-      document.removeEventListener('fullscreenchange', onFullscreenChange)
-    }
-  }, [removeItem, selectedRowId])
-
-  const listForDate = useMemo(() => allData[selectedDateKey] ?? [], [allData, selectedDateKey])
-
-  const visibleRows = useMemo(() => {
-    const now = todayNow
-    return listForDate.filter((item) => {
-      const diffMinutes = (now.getTime() - parseArrivalDateTime(selectedDateKey, item.arrivalTime).getTime()) / 60_000
-      return diffMinutes < 30
-    })
-  }, [listForDate, selectedDateKey, todayNow])
-
-  const withMeta = useMemo(() => {
-    const now = todayNow
-    return visibleRows
+    return items
       .map((item) => {
-        const arrivalDate = parseArrivalDateTime(selectedDateKey, item.arrivalTime)
-        const diffMinutes = (now.getTime() - arrivalDate.getTime()) / 60_000
-        return { ...item, diffMinutes }
+        const trainTime = new Date(`${dateKey}T${item.arrivalTime}:00`);
+        const diffMin = (now - trainTime) / 60000;
+        return {
+          ...item,
+          isPast: dateKey === getTodayKey() && diffMin >= 10,
+        };
       })
-      .sort((a, b) => a.arrivalTime.localeCompare(b.arrivalTime))
-  }, [visibleRows, selectedDateKey, todayNow])
+      .sort((a, b) => a.arrivalTime.localeCompare(b.arrivalTime));
+  }, [items, dateKey]);
 
-  const upRows = withMeta.filter((item) => item.direction === '상선')
-  const downRows = withMeta.filter((item) => item.direction === '하선')
+  const upItems = visibleItems.filter((item) => item.direction === "up");
+  const downItems = visibleItems.filter((item) => item.direction === "down");
 
-  const moveDate = (delta) => {
-    setSelectedDate((prev) => {
-      const next = new Date(prev)
-      next.setDate(next.getDate() + delta)
-      return next
-    })
-    setSelectedRowId(null)
-    setForm(emptyForm)
-  }
+  const updateForm = (name, value) => {
+    setForm((prev) => {
+      const next = { ...prev, [name]: value };
 
-  const onTrainNoChange = (value) => {
-    const onlyNum = value.replace(/[^0-9]/g, '')
-    const scheduleTime = TRAIN_SCHEDULE[onlyNum] ?? ''
-    const direction = onlyNum ? getDirection(onlyNum) : null
-    setForm((prev) => ({
-      ...prev,
-      trainNo: onlyNum,
-      arrivalTime: scheduleTime,
-      destination: prev.boardingType === '하차' ? '익산' : prev.destination,
-      transferInfo: prev.transferInfo,
-      direction,
-    }))
-  }
+      if (name === "trainNo") {
+        const clean = value.replace(/\D/g, "");
+        next.trainNo = clean;
+        next.arrivalTime = TRAIN_TIMES[clean] || "";
+      }
 
-  const updateBoardingType = (boardingType) => {
-    setForm((prev) => ({
-      ...prev,
-      boardingType,
-      destination: boardingType === '하차' ? '익산' : prev.destination === '익산' ? '' : prev.destination,
-      contacted: boardingType === '하차' ? false : prev.contacted,
-      seat: boardingType === '하차' ? '' : prev.seat,
-    }))
-  }
+      if (name === "boarding" && value === "하차") {
+        next.destination = "익산";
+        next.seatNo = "";
+      }
 
-  const validateForm = () => {
-    if (!TRAIN_SCHEDULE[form.trainNo]) return '열차번호는 기존 시간표에 있는 번호만 입력 가능합니다.'
-    const coachNo = Number(form.coach)
-    if (!Number.isInteger(coachNo) || coachNo < 1 || coachNo > 18) return '호차는 1~18 범위의 숫자만 입력 가능합니다.'
-    if (!form.category) return '분류를 선택해 주세요.'
-    if (form.boardingType === '승차' && !form.destination.trim()) return '승차는 도착역을 직접 입력해야 합니다.'
-    if (form.boardingType === '승차' && !['유실물', '역물품'].includes(form.category) && !form.seat.trim()) return '승차(유실물/역물품 제외)는 좌석 번호가 필요합니다.'
-    return null
-  }
+      if (name === "boarding" && value === "승차" && prev.destination === "익산") {
+        next.destination = "";
+      }
 
-  const saveItem = (event) => {
-    event.preventDefault()
-    const error = validateForm()
-    if (error) {
-      window.alert(error)
-      return
+      if (name === "type" && (value === "유실물" || value === "역물품")) {
+        next.seatNo = "";
+      }
+
+      if (name === "carNo") {
+        const n = Number(value);
+        next.carNo = value === "" ? "" : Math.min(18, Math.max(1, n));
+      }
+
+      return next;
+    });
+  };
+
+  const submit = (e) => {
+    e.preventDefault();
+
+    if (!TRAIN_TIMES[form.trainNo]) {
+      alert("기존 파일에 등록된 열차번호만 입력할 수 있습니다.");
+      return;
+    }
+
+    if (!form.carNo || Number(form.carNo) < 1 || Number(form.carNo) > 18) {
+      alert("호차는 1부터 18까지만 입력할 수 있습니다.");
+      return;
+    }
+
+    if (form.boarding === "승차" && form.type !== "유실물" && form.type !== "역물품" && !form.seatNo) {
+      alert("승차 건은 좌석번호를 입력해야 합니다.");
+      return;
     }
 
     const payload = {
-      id: form.id ?? crypto.randomUUID(),
-      trainNo: form.trainNo,
-      arrivalTime: form.arrivalTime,
-      boardingType: form.boardingType,
-      coach: form.coach,
-      seat: form.boardingType === '하차' || ['유실물', '역물품'].includes(form.category) ? '' : form.seat,
-      category: form.category,
-      destination: form.boardingType === '하차' ? '익산' : form.destination,
-      manager: form.manager,
-      note: form.note,
-      transferInfo: form.transferInfo,
-      contacted: form.boardingType === '승차' ? form.contacted : false,
+      ...form,
+      id: form.id || crypto.randomUUID(),
       direction: getDirection(form.trainNo),
-      createdAt: new Date().toISOString(),
+      contactDone: form.contactDone || false,
+      destination: form.boarding === "하차" ? "익산" : form.destination,
+    };
+
+    setItems((prev) => {
+      if (form.id) return prev.map((item) => (item.id === form.id ? payload : item));
+      return [...prev, payload];
+    });
+
+    setSelectedId(null);
+    setForm(emptyForm);
+  };
+
+  const selectItem = (item) => {
+    setSelectedId(item.id);
+    setForm(item);
+  };
+
+  const deleteItem = (id) => {
+    setItems((prev) => prev.filter((item) => item.id !== id));
+    setContextMenu(null);
+    if (selectedId === id) {
+      setSelectedId(null);
+      setForm(emptyForm);
     }
+  };
 
-    setAllData((prev) => {
-      const existing = prev[selectedDateKey] ?? []
-      const index = existing.findIndex((item) => item.id === payload.id)
-      const updated = [...existing]
+  const toggleContact = (id) => {
+    setItems((prev) =>
+      prev.map((item) => (item.id === id ? { ...item, contactDone: !item.contactDone } : item))
+    );
+  };
 
-      if (index >= 0) {
-        updated[index] = payload
-      } else {
-        updated.push(payload)
-      }
-
-      return {
-        ...prev,
-        [selectedDateKey]: updated,
-      }
-    })
-
-    setSelectedRowId(payload.id)
-    setForm(emptyForm)
-  }
-
-  const loadItemToForm = (item) => {
-    setSelectedRowId(item.id)
-    setForm({
-      id: item.id,
-      trainNo: item.trainNo,
-      arrivalTime: item.arrivalTime,
-      boardingType: item.boardingType,
-      coach: item.coach,
-      seat: item.seat,
-      category: item.category,
-      destination: item.destination,
-      manager: item.manager,
-      note: item.note,
-      transferInfo: item.transferInfo,
-      contacted: item.contacted,
-    })
-  }
-
-  const setContacted = (id, value) => {
-    setAllData((prev) => ({
-      ...prev,
-      [selectedDateKey]: (prev[selectedDateKey] ?? []).map((item) => (item.id === id ? { ...item, contacted: value } : item)),
-    }))
-  }
+  const downloadCsv = () => {
+    const csv = makeCsv(items, dateKey);
+    const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `승하차보조_${dateKey}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
   return (
-    <div className={`page ${isFullscreen ? 'fullscreen' : ''}`} onClick={() => setContextMenu(null)}>
-      {!isFullscreen && (
-        <header className="toolbar">
-          <div className="date-nav">
-            <button type="button" className="btn light" onClick={() => moveDate(-1)}>
-              ←
-            </button>
-            <div className="date-pill">{formatDisplayDate(selectedDate)}</div>
-            <button type="button" className="btn light" onClick={() => moveDate(1)}>
-              →
-            </button>
-          </div>
-          <div className="toolbar-right">
-            <span className="hint">F: 전체화면 / ESC: 종료</span>
-            <span className="clock">현재 {formatTime(todayNow)}</span>
-          </div>
-        </header>
-      )}
+    <div className={fullscreenBoard ? "app fullscreen-mode" : "app"}>
+      <div className="mock">
+        {!fullscreenBoard && (
+          <header className="toolbar">
+            <div className="date-nav">
+              <button className="btn light" onClick={() => setDateKey(addDate(dateKey, -1))}>
+                &lt;
+              </button>
+              <div className="date-pill">{formatDateLabel(dateKey)}</div>
+              <button className="btn light" onClick={() => setDateKey(addDate(dateKey, 1))}>
+                &gt;
+              </button>
+            </div>
 
-      <main className="board-wrap">
-        <BoardTable
-          title="상선"
-          rows={upRows}
-          selectedRowId={selectedRowId}
-          onSelect={loadItemToForm}
-          onContextMenu={setContextMenu}
-          onContactToggle={setContacted}
-        />
-        <BoardTable
-          title="하선"
-          rows={downRows}
-          selectedRowId={selectedRowId}
-          onSelect={loadItemToForm}
-          onContextMenu={setContextMenu}
-          onContactToggle={setContacted}
-        />
-      </main>
+            <div className="toolbar-actions">
+              <button className="btn sub" onClick={downloadCsv}>CSV 저장</button>
+              <button className="btn" onClick={() => setFullscreenBoard(true)}>전체화면</button>
+            </div>
+          </header>
+        )}
 
-      {!isFullscreen && (
-        <form className="formbar" onSubmit={saveItem}>
-          <div className="field">
-            <label htmlFor="trainNo">열차번호</label>
-            <input id="trainNo" value={form.trainNo} onChange={(e) => onTrainNoChange(e.target.value)} placeholder="예: 214" />
-          </div>
-          <div className="field">
-            <label htmlFor="arrivalTime">도착시간(자동)</label>
-            <input id="arrivalTime" value={form.arrivalTime} readOnly />
-          </div>
-          <div className="field">
-            <label htmlFor="boardingType">승하차</label>
-            <select id="boardingType" value={form.boardingType} onChange={(e) => updateBoardingType(e.target.value)}>
-              {BOARDING_TYPES.map((type) => (
-                <option key={type} value={type}>
-                  {type}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="field">
-            <label htmlFor="coach">호차(1~18)</label>
-            <input id="coach" inputMode="numeric" value={form.coach} onChange={(e) => setForm((prev) => ({ ...prev, coach: e.target.value.replace(/[^0-9]/g, '') }))} />
-          </div>
-          <div className="field">
-            <label htmlFor="seat">좌석(승차만)</label>
-            <input id="seat" value={form.seat} disabled={form.boardingType === '하차' || ['유실물', '역물품'].includes(form.category)} onChange={(e) => setForm((prev) => ({ ...prev, seat: e.target.value }))} />
-          </div>
-          <div className="field">
-            <label htmlFor="category">분류</label>
-            <select id="category" value={form.category} onChange={(e) => setForm((prev) => ({ ...prev, category: e.target.value }))}>
-              {CATEGORIES.map((category) => (
-                <option key={category} value={category}>
-                  {category}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="field">
-            <label htmlFor="destination">도착역</label>
-            <input id="destination" value={form.destination} readOnly={form.boardingType === '하차'} onChange={(e) => setForm((prev) => ({ ...prev, destination: e.target.value }))} />
-          </div>
-          <div className="field">
-            <label htmlFor="manager">담당자</label>
-            <input id="manager" value={form.manager} onChange={(e) => setForm((prev) => ({ ...prev, manager: e.target.value }))} />
-          </div>
-          <div className="field wide">
-            <label htmlFor="transferInfo">환승정보</label>
-            <input id="transferInfo" value={form.transferInfo} onChange={(e) => setForm((prev) => ({ ...prev, transferInfo: e.target.value }))} />
-          </div>
-          <div className="field wide">
-            <label htmlFor="note">비고</label>
-            <input id="note" value={form.note} onChange={(e) => setForm((prev) => ({ ...prev, note: e.target.value }))} />
-          </div>
-          <div className="actions">
-            <button type="submit" className="btn">{form.id ? '수정 저장' : '신규 등록'}</button>
-            <button type="button" className="btn light" onClick={() => { setForm(emptyForm); setSelectedRowId(null) }}>
-              초기화
-            </button>
-          </div>
-        </form>
-      )}
+        <main className="layout split">
+          <Board
+            title="상선"
+            items={upItems}
+            selectedId={selectedId}
+            onSelect={selectItem}
+            onContext={(e, item) => {
+              e.preventDefault();
+              setContextMenu({ x: e.clientX, y: e.clientY, id: item.id });
+            }}
+            onToggleContact={toggleContact}
+          />
+
+          <Board
+            title="하선"
+            items={downItems}
+            selectedId={selectedId}
+            onSelect={selectItem}
+            onContext={(e, item) => {
+              e.preventDefault();
+              setContextMenu({ x: e.clientX, y: e.clientY, id: item.id });
+            }}
+            onToggleContact={toggleContact}
+          />
+        </main>
+
+        {!fullscreenBoard && (
+          <form className="formbar" onSubmit={submit}>
+            <Field label="열차번호">
+              <input
+                value={form.trainNo}
+                onChange={(e) => updateForm("trainNo", e.target.value)}
+                placeholder="예: 214"
+              />
+            </Field>
+
+            <Field label="도착시간">
+              <input value={form.arrivalTime} readOnly placeholder="자동 입력" />
+            </Field>
+
+            <Field label="승하차">
+              <select value={form.boarding} onChange={(e) => updateForm("boarding", e.target.value)}>
+                {BOARDING_TYPES.map((v) => <option key={v}>{v}</option>)}
+              </select>
+            </Field>
+
+            <Field label="호차">
+              <input
+                type="number"
+                min="1"
+                max="18"
+                value={form.carNo}
+                onChange={(e) => updateForm("carNo", e.target.value)}
+              />
+            </Field>
+
+            <Field label="좌석">
+              <input
+                value={form.seatNo}
+                onChange={(e) => updateForm("seatNo", e.target.value.toUpperCase())}
+                disabled={form.boarding === "하차" || form.type === "유실물" || form.type === "역물품"}
+                placeholder="예: 8A"
+              />
+            </Field>
+
+            <Field label="분류">
+              <select value={form.type} onChange={(e) => updateForm("type", e.target.value)}>
+                {TYPES.map((v) => <option key={v}>{v}</option>)}
+              </select>
+            </Field>
+
+            <Field label="도착역">
+              <input
+                value={form.destination}
+                onChange={(e) => updateForm("destination", e.target.value)}
+                readOnly={form.boarding === "하차"}
+                placeholder="승차 시 입력"
+              />
+            </Field>
+
+            <Field label="담당자">
+              <input value={form.manager} onChange={(e) => updateForm("manager", e.target.value)} />
+            </Field>
+
+            <Field label="환승정보">
+              <input value={form.transfer} onChange={(e) => updateForm("transfer", e.target.value)} />
+            </Field>
+
+            <Field label="비고">
+              <input value={form.memo} onChange={(e) => updateForm("memo", e.target.value)} />
+            </Field>
+
+            <div className="form-actions">
+              <button className="btn" type="submit">{form.id ? "수정" : "등록"}</button>
+              <button
+                className="btn sub"
+                type="button"
+                onClick={() => {
+                  setForm(emptyForm);
+                  setSelectedId(null);
+                }}
+              >
+                초기화
+              </button>
+            </div>
+          </form>
+        )}
+      </div>
 
       {contextMenu && (
-        <div className="context-menu" style={{ left: contextMenu.x, top: contextMenu.y }}>
-          <button type="button" onClick={() => removeItem(contextMenu.id)}>
-            삭제
-          </button>
-        </div>
+        <button
+          className="context-delete"
+          style={{ left: contextMenu.x, top: contextMenu.y }}
+          onClick={() => deleteItem(contextMenu.id)}
+        >
+          삭제
+        </button>
       )}
     </div>
-  )
+  );
 }
 
-function BoardTable({ title, rows, selectedRowId, onSelect, onContextMenu, onContactToggle }) {
+function Field({ label, children }) {
   return (
-    <section className="board" aria-label={title}>
-      <h2>{title}</h2>
+    <label className="field">
+      <span>{label}</span>
+      {children}
+    </label>
+  );
+}
+
+function Board({ title, items, selectedId, onSelect, onContext, onToggleContact }) {
+  return (
+    <section className="board">
+      <div className="board-title">
+        <strong>{title}</strong>
+        <span>{items.length}건</span>
+      </div>
+
       <div className="table-wrap">
-        <table>
+        <table className="table">
+          <colgroup>
+            <col style={{ width: "8%" }} />
+            <col style={{ width: "8%" }} />
+            <col style={{ width: "8%" }} />
+            <col style={{ width: "10%" }} />
+            <col style={{ width: "10%" }} />
+            <col style={{ width: "8%" }} />
+            <col style={{ width: "10%" }} />
+            <col style={{ width: "7%" }} />
+            <col style={{ width: "13%" }} />
+            <col style={{ width: "18%" }} />
+          </colgroup>
+
           <thead>
             <tr>
-              <th>열차번호</th>
-              <th>도착시간</th>
+              <th>열차</th>
+              <th>도착</th>
               <th>승하차</th>
               <th>좌석</th>
               <th>분류</th>
               <th>도착역</th>
               <th>담당자</th>
-              <th>비고</th>
               <th>상태</th>
               <th>환승정보</th>
+              <th>비고</th>
             </tr>
           </thead>
+
           <tbody>
-            {rows.map((item) => {
-              const isPast = item.diffMinutes >= 10
-              const isSelected = selectedRowId === item.id
-              return (
-                <tr
-                  key={item.id}
-                  className={`${isPast ? 'past' : ''} ${isSelected ? 'selected' : ''}`.trim()}
-                  onClick={() => onSelect(item)}
-                  onContextMenu={(event) => {
-                    event.preventDefault()
-                    onContextMenu({ id: item.id, x: event.clientX, y: event.clientY })
-                  }}
-                >
-                  <td>{item.trainNo}</td>
-                  <td>{item.arrivalTime}</td>
-                  <td>{item.boardingType === '승차' ? '↑ 승차' : '↓ 하차'}</td>
-                  <td>{buildSeatDisplay(item)}</td>
-                  <td>{item.category}</td>
-                  <td>{item.destination}</td>
-                  <td>{item.manager || '-'}</td>
-                  <td>{item.note || '-'}</td>
-                  <td>
-                    {item.boardingType === '승차' ? (
-                      <label className="contact">
-                        <input type="checkbox" checked={Boolean(item.contacted)} onChange={(e) => onContactToggle(item.id, e.target.checked)} />
-                        {item.contacted ? '완료' : '대기'}
-                      </label>
-                    ) : (
-                      '-'
-                    )}
-                  </td>
-                  <td>{item.transferInfo || '-'}</td>
-                </tr>
-              )
-            })}
-            {rows.length === 0 && (
+            {items.length === 0 && (
               <tr>
-                <td colSpan={10} className="empty-cell">
-                  등록된 항목이 없습니다.
-                </td>
+                <td className="empty-row" colSpan="10">등록된 승하차보조 건이 없습니다.</td>
               </tr>
             )}
+
+            {items.map((item) => (
+              <tr
+                key={item.id}
+                className={`${item.isPast ? "past" : ""} ${selectedId === item.id ? "selected" : ""}`}
+                onClick={() => onSelect(item)}
+                onContextMenu={(e) => onContext(e, item)}
+              >
+                <td className="train-no">#{item.trainNo}</td>
+                <td>{item.arrivalTime}</td>
+                <td className={item.boarding === "승차" ? "boarding up" : "boarding down"}>
+                  {item.boarding === "승차" ? "↑ 승차" : "↓ 하차"}
+                </td>
+                <td>{getSeatDisplay(item.carNo, item.seatNo)}</td>
+                <td>{item.type}</td>
+                <td>{item.destination || "-"}</td>
+                <td><span className="small-text">{item.manager || "-"}</span></td>
+                <td onClick={(e) => e.stopPropagation()}>
+                  {item.boarding === "승차" ? (
+                    <label className="contact">
+                      <input
+                        type="checkbox"
+                        checked={item.contactDone}
+                        onChange={() => onToggleContact(item.id)}
+                      />
+                    </label>
+                  ) : (
+                    <span className="contact empty">-</span>
+                  )}
+                </td>
+                <td><span className="small-text">{item.transfer || "-"}</span></td>
+                <td><span className="small-text">{item.memo || "-"}</span></td>
+              </tr>
+            ))}
           </tbody>
         </table>
       </div>
     </section>
-  )
+  );
 }
-
-function saveCsvSnapshot(allData) {
-  const csvByDate = {}
-
-  Object.entries(allData).forEach(([dateKey, items]) => {
-    const rows = items
-      .filter((item) => !EXCLUDED_CSV_CATEGORIES.has(item.category))
-      .map((item) => [
-        dateKey,
-        item.trainNo,
-        item.arrivalTime,
-        item.boardingType,
-        buildSeatDisplay(item),
-        item.category,
-        item.destination,
-        item.note,
-      ])
-
-    const header = ['날짜', '열차번호', '도착시간', '승하차', '좌석', '분류', '도착역', '비고']
-    const lines = [header, ...rows].map((line) => line.map(csvEscape).join(',')).join('\n')
-    csvByDate[dateKey] = lines
-  })
-
-  localStorage.setItem(CSV_STORAGE_KEY, JSON.stringify(csvByDate))
-}
-
-function csvEscape(value) {
-  const text = String(value ?? '')
-  if (text.includes(',') || text.includes('"') || text.includes('\n')) {
-    return `"${text.replaceAll('"', '""')}"`
-  }
-  return text
-}
-
-export default App

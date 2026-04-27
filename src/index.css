@@ -1,10 +1,15 @@
 body {
   margin: 0;
+  font-family: "Pretendard", "Noto Sans KR", "Malgun Gothic", Arial, sans-serif;
   background: #e9edf3;
-  color: #111827;
-  font-family: 'Pretendard', 'Noto Sans KR', 'Malgun Gothic', system-ui, sans-serif;
 }
 
-#root {
-  padding: 14px;
+button,
+input,
+select {
+  font-family: inherit;
+}
+
+button {
+  user-select: none;
 }
