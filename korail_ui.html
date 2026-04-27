@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>코레일 승하차보조 UI</title>
+  <style>
+    :root{
+      --korail-blue:#005BAC;
+      --korail-light-blue:#00B2E3;
+      --korail-gray:#77777A;
+      --ink:#111827;
+      --muted:#667085;
+      --line:#d7dde6;
+      --bg:#f4f6f9;
+      --panel:#ffffff;
+      --soft:#eef2f7;
+      --danger:#c0392b;
+      --ok:#157347;
+      --warn:#f59e0b;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;background:#e9edf3;color:var(--ink);font-family:"Pretendard","Noto Sans KR","Malgun Gothic",Arial,sans-serif;}
+    .page{max-width:1480px;margin:0 auto;padding:22px 24px 80px;}
+    .mock{overflow: visible;background:#fff;border:1px solid #cbd5e1;border-radius:18px;overflow:hidden;box-shadow:0 10px 24px rgba(15,23,42,.08)}
+    .toolbar{display:flex;align-items:center;justify-content:center;padding:14px 18px;border-bottom:1px solid var(--line);background:#fff;position:relative}
+    .date-nav{display:flex;align-items:center;gap:10px}
+    .date-pill{font-size:20px;font-weight:900;padding:8px 18px;border:none;background:transparent;min-width:280px;text-align:center}
+    .btn{border:0;border-radius:9px;padding:10px 14px;background:var(--korail-blue);color:#fff;font-weight:800}
+    .btn.light{background:#eef4fb;color:#003d75;border:0;font-size:18px;line-height:1;padding:11px 15px}
+    .layout{padding:18px}.split{display:flex;flex-direction:column;gap:16px}
+    .board{position:relative}
+    .board-title{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}.board-title strong{font-size:19px}
+    .table-wrap{position:relative;overflow:visible}
+    .table{width:100%;border-collapse:separate;border-spacing:0;table-layout: fixed;}
+    .table th{background:#f1f5f9;color:#344054;font-size:14px;padding:10px;border-top:1px solid #d9e1ec;border-bottom:1px solid #d9e1ec;text-align:center}
+    .table td{font-size:18px;font-weight:750;padding:14px 10px;border-bottom:1px solid #e5eaf1;text-align:center}
+    .table tr:nth-child(even) td{background:#fbfcfe}.past{opacity:.38}
+    .badge{display:inline-flex;align-items:center;justify-content:center;min-width:54px;padding:6px 9px;border-radius:999px;font-size:14px;font-weight:900}.blue{background:#e9f4ff;color:#005BAC}.cyan{background:#e5faff;color:#007b9f}.green{background:#e7f6ee;color:#137247}.red{background:#fff0ed;color:#c2412d}.gray{background:#f1f3f5;color:#667085}
+    .circle{display:inline-grid;place-items:center;width:28px;height:28px;border:2px solid #111827;border-radius:50%;font-weight:900;margin-right:4px}
+    .contact{display:inline-flex;align-items:center;gap:7px;font-size:14px;font-weight:850;color:#344054}.contact input{width:18px;height:18px;accent-color:var(--korail-blue)}.contact.empty{color:#98a2b3}
+    .formbar{display:grid;grid-template-columns:repeat(8,1fr);gap:10px;padding:14px 18px;background:#f3f6fa;border-top:1px solid var(--line)}.field{display:flex;flex-direction:column;gap:5px}.field label{font-size:12px;font-weight:900;color:#344054}.field div{height:38px;border:1px solid #c7cfdb;background:#fff;border-radius:8px;display:flex;align-items:center;padding:0 10px;color:#667085;font-size:13px}
+    .train-no{font-weight:900}
+    .seat-no {
+      font-size: 16px;
+    }
+    .small-text {
+      font-size: 16px;
+    }
+    @media(max-width:980px){.formbar{grid-template-columns:repeat(2,1fr)}.table td{font-size:15px}.date-pill{min-width:210px;font-size:17px}}
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="mock">
+      <div class="toolbar">
+        <div class="date-nav">
+          <button class="btn light">&lt;</button>
+          <div class="date-pill">2026-04-27 월요일</div>
+          <button class="btn light">&gt;</button>
+        </div>
+      </div>
+
+      <div class="layout split">
+        <div class="board">
+          <div class="board-title"><strong>상선</strong></div>
+          <div class="table-wrap">
+            <table class="table">
+              <colgroup>
+                <col style="width:8%">  <!-- 열차 -->
+                <col style="width:8%">  <!-- 도착 -->
+                <col style="width:8%">  <!-- 승하차 -->
+                <col style="width:10%">  <!-- 좌석 -->
+                <col style="width:10%">  <!-- 분류 -->
+                <col style="width:8%">  <!-- 도착역 -->
+                <col style="width:10%">  <!-- 담당자 -->
+                <col style="width:6%">  <!-- 연락 상태 -->
+                <col style="width:16%">  <!-- 비고 -->
+              </colgroup>
+              <thead><tr><th>열차</th><th>도착</th><th>승하차</th><th>좌석</th><th>분류</th><th>도착역</th><th>담당자</th><th>연락 상태</th><th>비고</th></tr></thead>
+              <tbody>
+                <tr class="past"><td class="train-no">#102</td><td>09:15</td><td>↑ 승차</td><td><span class="circle">3</span><span class="seat-no">8A</span></td><td>휠필</td><td>용산</td><td><span class="small-text">정재훈</span></td><td><label class="contact"><input type="checkbox" checked /></label></td><td>-</td></tr>
+                <tr><td class="train-no">#214</td><td>10:42</td><td>↓ 하차</td><td><span class="circle">7</span></td><td>리프트</td><td>익산</td><td><span class="small-text">정채황</span></td><td><span class="contact empty"></span></td><td>-</td></tr>
+                <tr><td class="train-no">#1004</td><td>11:10</td><td>↑ 승차</td><td><span class="circle">2</span><span class="seat-no">12B</span></td><td>시각(여)</td><td>대전</td><td><span class="small-text">조승민</span></td><td><label class="contact"><input type="checkbox" /></label></td><td>-</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="board">
+          <div class="board-title"><strong>하선</strong></div>
+          <div class="table-wrap">
+            <table class="table">
+              <colgroup>
+                <col style="width:8%">  <!-- 열차 -->
+                <col style="width:8%">  <!-- 도착 -->
+                <col style="width:8%">  <!-- 구분 -->
+                <col style="width:10%">  <!-- 좌석 -->
+                <col style="width:10%">  <!-- 분류 -->
+                <col style="width:8%">  <!-- 도착역 -->
+                <col style="width:10%">  <!-- 담당자 -->
+                <col style="width:6%">  <!-- 연락 상태 -->
+                <col style="width:16%">  <!-- 비고 -->
+              </colgroup>
+              <thead><tr><th>열차</th><th>도착</th><th>승하차</th><th>좌석</th><th>분류</th><th>도착역</th><th>담당자</th><th>연락 상태</th><th>비고</th></tr></thead>
+              <tbody>
+                <tr><td class="train-no">#1531</td><td>10:58</td><td>↑ 승차</td><td><span class="circle">1</span><span class="seat-no">5C</span></td><td>휠프트</td><td>목포</td><td><span class="small-text">이주찬</span></td><td><label class="contact"><input type="checkbox" /></label></td><td><span class="small-text">환승</span></td></tr>
+                <tr><td class="train-no">#505</td><td>12:21</td><td>↓ 하차</td><td><span class="circle">6</span></td><td>리프트</td><td>익산</td><td><span class="small-text">김민서</span></td><td><span class="contact empty"></span></td><td>-</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="formbar">
+        <div class="field"><label>열차번호</label><div>#214</div></div>
+        <div class="field"><label>도착시간</label><div>10:42</div></div>
+        <div class="field"><label>승하차</label><div>하차</div></div>
+        <div class="field"><label>호차/좌석</label><div>7호차</div></div>
+        <div class="field"><label>분류</label><div>리프트</div></div>
+        <div class="field"><label>도착역</label><div>익산</div></div>
+        <div class="field"><label>담당자</label><div>박하늘</div></div>
+        <div class="field"><label>비고</label><div>환승</div></div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
