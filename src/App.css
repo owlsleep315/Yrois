@@ -233,6 +233,10 @@
   gap: 5px;
 }
 
+.field-wide {
+  grid-column: span 2;
+}
+
 .field span {
   font-size: 12px;
   font-weight: 900;

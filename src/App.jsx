@@ -390,7 +390,7 @@ export default function App() {
             </Field>
 
 
-            <Field label="비고" className="memo-field">
+            <Field label="비고" className="field-wide">
               <input value={form.memo} onChange={(e) => updateForm("memo", e.target.value)} />
             </Field>
 
@@ -424,9 +424,9 @@ export default function App() {
   );
 }
 
-function Field({ label, children }) {
+function Field({ label, children, className = "" }) {
   return (
-    <label className={'field ${className || ""}'}>
+    <label className={`field ${className}`.trim()}>
       <span>{label}</span>
       {children}
     </label>
