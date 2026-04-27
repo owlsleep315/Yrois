@@ -15,20 +15,32 @@ const TRAIN_TIMES = {
 const TYPES = ["리프트", "휠프트", "휠필", "시각(남)", "시각(여)", "유실물", "역물품"];
 const BOARDING_TYPES = ["승차", "하차"];
 
+function formatDateKey(date) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
+function parseDateKey(dateKey) {
+  const [y, m, d] = dateKey.split("-").map(Number);
+  return new Date(y, m - 1, d);
+}
+
 function getTodayKey() {
-  return new Date().toISOString().slice(0, 10);
+  return formatDateKey(new Date());
 }
 
 function formatDateLabel(dateKey) {
-  const date = new Date(`${dateKey}T00:00:00`);
+  const date = parseDateKey(dateKey);
   const weekdays = ["일요일", "월요일", "화요일", "수요일", "목요일", "금요일", "토요일"];
   return `${dateKey} ${weekdays[date.getDay()]}`;
 }
 
 function addDate(dateKey, amount) {
-  const date = new Date(`${dateKey}T00:00:00`);
+  const date = parseDateKey(dateKey);
   date.setDate(date.getDate() + amount);
-  return date.toISOString().slice(0, 10);
+  return formatDateKey(date);
 }
 
 function getDirection(trainNo) {
@@ -157,6 +169,15 @@ export default function App() {
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [selectedId]);
+
+  useEffect(() => {
+    const onFullscreenChange = () => {
+      setFullscreenBoard(Boolean(document.fullscreenElement));
+    };
+
+    document.addEventListener("fullscreenchange", onFullscreenChange);
+    return () => document.removeEventListener("fullscreenchange", onFullscreenChange);
+  }, []);
 
   const visibleItems = useMemo(() => {
     const now = new Date();
