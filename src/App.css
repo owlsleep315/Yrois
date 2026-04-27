@@ -180,8 +180,8 @@
 .circle {
   display: inline-grid;
   place-items: center;
-  width: 28px;
-  height: 28px;
+  width: 32px;
+  height: 32px;
   border: 2px solid #111827;
   border-radius: 50%;
   font-weight: 900;
@@ -324,9 +324,9 @@
 }
 
 .fullscreen-mode .circle {
-  width: 1.35em;
-  min-width: 1.35em;
-  height: 1.35em;
+  width: 1.50em;
+  min-width: 1.50em;
+  height: 1.50em;
   line-height: 1;
   border-width: 0.12em;
 }

@@ -12,7 +12,7 @@ const TRAIN_TIMES = {
   "703": "15:40",
 };
 
-const TYPES = ["리프트", "휠프트", "휠필", "시각(남)", "시각(여)", "유실물", "역물품"];
+const TYPES = ["리프트", "휠프트", "휠필", "시각(남)", "시각(여)", "유실물", "역물품", "승하차도움"];
 const BOARDING_TYPES = ["승차", "하차"];
 
 function formatDateKey(date) {
