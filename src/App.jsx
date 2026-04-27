@@ -15,20 +15,32 @@ const TRAIN_TIMES = {
 const TYPES = ["리프트", "휠프트", "휠필", "시각(남)", "시각(여)", "유실물", "역물품"];
 const BOARDING_TYPES = ["승차", "하차"];
 
+function formatDateKey(date) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
+function parseDateKey(dateKey) {
+  const [y, m, d] = dateKey.split("-").map(Number);
+  return new Date(y, m - 1, d);
+}
+
 function getTodayKey() {
-  return new Date().toISOString().slice(0, 10);
+  return formatDateKey(new Date());
 }
 
 function formatDateLabel(dateKey) {
-  const date = new Date(`${dateKey}T00:00:00`);
+  const date = parseDateKey(dateKey);
   const weekdays = ["일요일", "월요일", "화요일", "수요일", "목요일", "금요일", "토요일"];
   return `${dateKey} ${weekdays[date.getDay()]}`;
 }
 
 function addDate(dateKey, amount) {
-  const date = new Date(`${dateKey}T00:00:00`);
+  const date = parseDateKey(dateKey);
   date.setDate(date.getDate() + amount);
-  return date.toISOString().slice(0, 10);
+  return formatDateKey(date);
 }
 
 function getDirection(trainNo) {
@@ -97,7 +109,6 @@ const emptyForm = {
   destination: "",
   manager: "",
   memo: "",
-  transfer: "",
 };
 
 export default function App() {
@@ -159,6 +170,15 @@ export default function App() {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [selectedId]);
 
+  useEffect(() => {
+    const onFullscreenChange = () => {
+      setFullscreenBoard(Boolean(document.fullscreenElement));
+    };
+
+    document.addEventListener("fullscreenchange", onFullscreenChange);
+    return () => document.removeEventListener("fullscreenchange", onFullscreenChange);
+  }, []);
+
   const visibleItems = useMemo(() => {
     const now = new Date();
 
@@ -217,15 +237,6 @@ export default function App() {
       return;
     }
 
-    if (!form.carNo || Number(form.carNo) < 1 || Number(form.carNo) > 18) {
-      alert("호차는 1부터 18까지만 입력할 수 있습니다.");
-      return;
-    }
-
-    if (form.boarding === "승차" && form.type !== "유실물" && form.type !== "역물품" && !form.seatNo) {
-      alert("승차 건은 좌석번호를 입력해야 합니다.");
-      return;
-    }
 
     const payload = {
       ...form,
@@ -381,11 +392,8 @@ export default function App() {
               <input value={form.manager} onChange={(e) => updateForm("manager", e.target.value)} />
             </Field>
 
-            <Field label="환승정보">
-              <input value={form.transfer} onChange={(e) => updateForm("transfer", e.target.value)} />
-            </Field>
 
-            <Field label="비고">
+            <Field label="비고" className="field-wide">
               <input value={form.memo} onChange={(e) => updateForm("memo", e.target.value)} />
             </Field>
 
@@ -419,9 +427,9 @@ export default function App() {
   );
 }
 
-function Field({ label, children }) {
+function Field({ label, children, className = "" }) {
   return (
-    <label className="field">
+    <label className={`field ${className}`.trim()}>
       <span>{label}</span>
       {children}
     </label>
@@ -448,7 +456,6 @@ function Board({ title, items, selectedId, onSelect, onContext, onToggleContact 
             <col style={{ width: "10%" }} />
             <col style={{ width: "7%" }} />
             <col style={{ width: "13%" }} />
-            <col style={{ width: "18%" }} />
           </colgroup>
 
           <thead>
@@ -461,7 +468,6 @@ function Board({ title, items, selectedId, onSelect, onContext, onToggleContact 
               <th>도착역</th>
               <th>담당자</th>
               <th>상태</th>
-              <th>환승정보</th>
               <th>비고</th>
             </tr>
           </thead>
@@ -469,7 +475,7 @@ function Board({ title, items, selectedId, onSelect, onContext, onToggleContact 
           <tbody>
             {items.length === 0 && (
               <tr>
-                <td className="empty-row" colSpan="10">등록된 승하차보조 건이 없습니다.</td>
+                <td className="empty-row" colSpan="9">등록된 승하차보조 건이 없습니다.</td>
               </tr>
             )}
 
@@ -502,7 +508,6 @@ function Board({ title, items, selectedId, onSelect, onContext, onToggleContact 
                     <span className="contact empty">-</span>
                   )}
                 </td>
-                <td><span className="small-text">{item.transfer || "-"}</span></td>
                 <td><span className="small-text">{item.memo || "-"}</span></td>
               </tr>
             ))}

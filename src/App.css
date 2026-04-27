@@ -233,6 +233,10 @@
   gap: 5px;
 }
 
+.field-wide {
+  grid-column: span 2;
+}
+
 .field span {
   font-size: 12px;
   font-weight: 900;
@@ -313,6 +317,15 @@
 
 .fullscreen-mode .small-text {
   font-size: 0.78em;
+}
+
+.fullscreen-mode .circle {
+  width: 1.35em;
+  min-width: 1.35em;
+  height: 1.35em;
+  font-size: 0.72em;
+  line-height: 1;
+  border-width: 0.07em;
 }
 
 @media (max-width: 1180px) {
