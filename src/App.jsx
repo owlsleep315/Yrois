@@ -464,7 +464,7 @@ function Board({ title, items, selectedId, onSelect, onContext, onToggleContact 
               <th>분류</th>
               <th>도착역</th>
               <th>담당자</th>
-              <th>상태</th>
+              <th>연락 상태</th>
               <th>비고</th>
             </tr>
           </thead>
