@@ -316,12 +316,12 @@
 }
 
 .fullscreen-mode .circle {
-  width: 1.2em;
-  min-width: 1.2em;
-  height: 1.2em;
-  font-size: 0.56em;
+  width: 1.35em;
+  min-width: 1.35em;
+  height: 1.35em;
+  font-size: 0.72em;
   line-height: 1;
-  border-width: 0.08em;
+  border-width: 0.07em;
 }
 
 @media (max-width: 1180px) {
