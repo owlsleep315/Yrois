@@ -340,7 +340,6 @@ export default function App() {
               <input
                 value={form.trainNo}
                 onChange={(e) => updateForm("trainNo", e.target.value)}
-                placeholder="예: 214"
               />
             </Field>
 
@@ -369,7 +368,6 @@ export default function App() {
                 value={form.seatNo}
                 onChange={(e) => updateForm("seatNo", e.target.value.toUpperCase())}
                 disabled={form.boarding === "하차" || form.type === "유실물" || form.type === "역물품"}
-                placeholder="예: 8A"
               />
             </Field>
 
@@ -384,7 +382,6 @@ export default function App() {
                 value={form.destination}
                 onChange={(e) => updateForm("destination", e.target.value)}
                 readOnly={form.boarding === "하차"}
-                placeholder="승차 시 입력"
               />
             </Field>
 

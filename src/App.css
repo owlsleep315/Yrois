@@ -261,6 +261,10 @@
   color: #667085;
 }
 
+.memo-field {
+  grid-column: span 2;
+}
+
 .form-actions {
   display: flex;
   gap: 6px;
@@ -323,9 +327,13 @@
   width: 1.35em;
   min-width: 1.35em;
   height: 1.35em;
-  font-size: 0.72em;
   line-height: 1;
-  border-width: 0.07em;
+  border-width: 0.12em;
+}
+
+.fullscreen-mode .seat-no {
+  font-size: 0.78em;
+  vertical-align: middle;
 }
 
 @media (max-width: 1180px) {
