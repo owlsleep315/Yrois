@@ -315,6 +315,15 @@
   font-size: 0.78em;
 }
 
+.fullscreen-mode .circle {
+  width: 1.2em;
+  min-width: 1.2em;
+  height: 1.2em;
+  font-size: 0.56em;
+  line-height: 1;
+  border-width: 0.08em;
+}
+
 @media (max-width: 1180px) {
   .formbar {
     grid-template-columns: repeat(4, 1fr);
