@@ -160,15 +160,22 @@ function getItemTimeState(item, selectedDateKey, now) {
 }
 
 function useVisibleItems(recordsState, now) {
-  const records = recordsState?.records || [];
-  const dateKey = recordsState?.dateKey;
-
   return useMemo(() => {
-    return records
-      .map((item) => ({ ...item, ...getItemTimeState(item, dateKey, now) }))
+    const dateKey = recordsState?.dateKey || getTodayKey();
+    const allRecords = recordsState?.allRecords || [];
+    const fallbackRecords = recordsState?.records || [];
+
+    const sourceRecords = allRecords.length > 0 ? allRecords : fallbackRecords;
+
+    return sourceRecords
+      .filter((item) => (item.dateKey || dateKey) === dateKey)
+      .map((item) => ({
+        ...item,
+        ...getItemTimeState(item, item.dateKey || dateKey, now),
+      }))
       .filter((item) => !item.hidden)
-      .sort((a, b) => a.arrivalTime.localeCompare(b.arrivalTime));
-  }, [records, dateKey, now]);
+      .sort((a, b) => (a.arrivalTime || "").localeCompare(b.arrivalTime || ""));
+  }, [recordsState, now]);
 }
 
 function BoardLayout({ adminMode = false, dateKey, changeDateKey, selectedId, setSelectedId, setForm, contextMenu, setContextMenu, upItems, downItems, submit, form, updateForm, selectItem, toggleContact, deleteItem }) {
