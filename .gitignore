@@ -22,3 +22,9 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# 데이터 파일 (실행 중 생성됨)
+data/boarding-records.json
+
+# 날짜별 CSV 인수인계 파일
+data/handover/*.csv

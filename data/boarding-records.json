@@ -1,1 +1,33 @@
-[]
+[
+  {
+    "id": "e34e66af-7d6f-49b6-a282-23c9af7b1016",
+    "trainNo": "102",
+    "arrivalTime": "09:15",
+    "boarding": "승차",
+    "carNo": "",
+    "seatNo": "",
+    "type": "리프트",
+    "destination": "",
+    "manager": "",
+    "memo": "테스트",
+    "dateKey": "2026-05-06",
+    "direction": "up",
+    "contactDone": false,
+    "isPast": true
+  },
+  {
+    "id": "d1359026-d2c9-45d9-9df7-f1ce88b1dfab",
+    "trainNo": "102",
+    "arrivalTime": "09:15",
+    "boarding": "승차",
+    "carNo": "",
+    "seatNo": "",
+    "type": "리프트",
+    "destination": "",
+    "manager": "",
+    "memo": "예약",
+    "dateKey": "2026-05-07",
+    "direction": "up",
+    "contactDone": false
+  }
+]
