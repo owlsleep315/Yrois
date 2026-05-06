@@ -250,7 +250,8 @@
 }
 
 .field input,
-.field select {
+.field select,
+.field textarea {
   height: 38px;
   border: 1px solid #c7cfdb;
   background: #fff;
@@ -263,7 +264,9 @@
 
 
 .field input:read-only,
-.field input:disabled {
+.field input:disabled,
+.field textarea:read-only,
+.field textarea:disabled {
   background: #eef2f7;
   color: #667085;
 }
