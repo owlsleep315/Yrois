@@ -4,6 +4,7 @@ const { initStore, persistRecords, regenerateCsv } = require('./recordFileStore.
 
 const isDev = !app.isPackaged;
 const DEV_SERVER_URL = 'http://localhost:5173';
+const APP_ICON_PATH = path.join(__dirname, '../public/yrois_logo.ico');
 
 let adminWindow;
 let displayWindow;
@@ -80,12 +81,14 @@ function createWindows() {
   const primaryDisplay = screen.getPrimaryDisplay();
   const secondaryDisplay = displays.find((display) => display.id !== primaryDisplay.id) || primaryDisplay;
 
+  if (process.platform === "win32") app.setAppUserModelId("com.yrois.app");
+
   adminWindow = new BrowserWindow({
     x: primaryDisplay.bounds.x,
     y: primaryDisplay.bounds.y,
     width: 1200,
     height: 800,
-    icon: path.join(__dirname, "../public/yrois_logo.ico"),
+    icon: APP_ICON_PATH,
     title: '승하차 보조 등록 화면',
     webPreferences: { preload: path.join(__dirname, 'preload.cjs'), contextIsolation: true, nodeIntegration: false },
   });
@@ -95,7 +98,7 @@ function createWindows() {
     y: secondaryDisplay.bounds.y,
     width: secondaryDisplay.bounds.width,
     height: secondaryDisplay.bounds.height,
-    icon: path.join(__dirname, "../public/yrois_logo.ico"),
+    icon: APP_ICON_PATH,
     title: '승하차 보조 표시 화면',
     fullscreen: true,
     autoHideMenuBar: true,

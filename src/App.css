@@ -41,12 +41,6 @@
   position: relative;
 }
 
-.toolbar-actions {
-  position: absolute;
-  right: 18px;
-  display: flex;
-  gap: 8px;
-}
 
 .date-nav {
   display: flex;
@@ -194,6 +188,22 @@
 
 .small-text {
   font-size: 0.86em;
+}
+
+.memo-text {
+  display: inline-block;
+  width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  line-height: 1.1;
+}
+
+.memo-text-medium {
+  font-size: 0.78em;
+}
+
+.memo-text-long {
+  font-size: 0.7em;
 }
 
 .contact {
