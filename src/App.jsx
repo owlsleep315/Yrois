@@ -1,22 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
+import { addRecord, deleteRecord, getRecordsState, setDateKey as setStoreDateKey, subscribeRecords, updateRecord } from "./services/recordStore";
 import { Navigate, Route, Routes } from "react-router-dom";
 import "./App.css";
 
-const TRAIN_TIMES = {
-  "1272": "05:15",
-  "508": "11:55",
-  "511": "13:41",
-  "429": "19:01",
-  "509": "12:20",
-  "1404": "12:49",
-  "1111": "19:08",
-  "2222": "19:26",
-  "3333": "19:28",
-};
-
 const TYPES = ["리프트", "휠프트", "휠필", "시각(남)", "시각(여)", "유실물", "역물품", "승하차도움"];
 const BOARDING_TYPES = ["승차", "하차"];
-const SYNC_KEY = "korail-live-sync";
 
 function formatDateKey(date) { const y = date.getFullYear(); const m = String(date.getMonth() + 1).padStart(2, "0"); const d = String(date.getDate()).padStart(2, "0"); return `${y}-${m}-${d}`; }
 function parseDateKey(dateKey) { const [y, m, d] = dateKey.split("-").map(Number); return new Date(y, m - 1, d); }
@@ -31,35 +19,34 @@ function makeCsv(items, dateKey) {
   const rows = items.filter(isCsvTarget).map((item) => [dateKey, item.trainNo, item.arrivalTime, item.boarding, `${item.carNo || ""}${item.seatNo ? `-${item.seatNo}` : ""}`, item.type, item.destination, item.memo]);
   return [headers, ...rows].map((row) => row.map((v) => `"${String(v ?? "").replaceAll('"', '""')}"`).join(",")).join("\n");
 }
-function saveOffline(dateKey, items) {
-  localStorage.setItem(`korail-json-${dateKey}`, JSON.stringify(items));
-  localStorage.setItem(`korail-csv-${dateKey}`, makeCsv(items, dateKey));
-  if (window.korailAPI?.saveData) { window.korailAPI.saveData({ date: dateKey, json: items, csv: makeCsv(items, dateKey) }); }
-}
-function loadOffline(dateKey) { const raw = localStorage.getItem(`korail-json-${dateKey}`); return raw ? JSON.parse(raw) : []; }
 
 const emptyForm = { id: null, trainNo: "", arrivalTime: "", boarding: "승차", carNo: "", seatNo: "", type: "리프트", destination: "", manager: "", memo: "" };
 
 export default function App() {
   const [dateKey, setDateKey] = useState(getTodayKey());
   const [items, setItems] = useState([]);
+  const [trainTimes, setTrainTimes] = useState({});
 
-  // eslint-disable-next-line react-hooks/set-state-in-effect
-  useEffect(() => { setItems(loadOffline(dateKey)); }, [dateKey]);
-  useEffect(() => { saveOffline(dateKey, items); localStorage.setItem(SYNC_KEY, JSON.stringify({ dateKey, at: Date.now() })); }, [items, dateKey]);
   useEffect(() => {
-    const onStorage = (e) => {
-      if (e.key === SYNC_KEY && e.newValue) {
-        const next = loadOffline(dateKey);
-        setItems(next);
-      }
-      if (e.key === `korail-json-${dateKey}`) setItems(loadOffline(dateKey));
+    let mounted = true;
+    getRecordsState().then((state) => {
+      if (!mounted) return;
+      setDateKey(state.dateKey);
+      setItems(state.records || []);
+      setTrainTimes(state.trainTimes || {});
+    });
+    const unsubscribe = subscribeRecords((state) => {
+      setDateKey(state.dateKey);
+      setItems(state.records || []);
+      setTrainTimes(state.trainTimes || {});
+    });
+    return () => {
+      mounted = false;
+      unsubscribe?.();
     };
-    window.addEventListener("storage", onStorage);
-    return () => window.removeEventListener("storage", onStorage);
-  }, [dateKey]);
+  }, []);
 
-  const dataProps = { dateKey, setDateKey, items, setItems };
+  const dataProps = { dateKey, setDateKey, items, setItems, trainTimes };
 
   return (
     <Routes>
@@ -70,7 +57,7 @@ export default function App() {
   );
 }
 
-function AdminPage({ dateKey, setDateKey, items, setItems }) {
+function AdminPage({ dateKey, items, trainTimes }) {
   const [form, setForm] = useState(emptyForm);
   const [selectedId, setSelectedId] = useState(null);
   const [contextMenu, setContextMenu] = useState(null);
@@ -79,42 +66,39 @@ function AdminPage({ dateKey, setDateKey, items, setItems }) {
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { setSelectedId(null); setForm(emptyForm); }, [dateKey]);
   useEffect(() => {
-    const timer = setInterval(() => {
-      forceTick((v) => v + 1);
-      const now = new Date();
-      setItems((prev) => prev.filter((item) => (now - new Date(`${dateKey}T${item.arrivalTime}:00`)) / 60000 < 30 || dateKey !== getTodayKey()));
-    }, 30000);
+    const timer = setInterval(() => forceTick((v) => v + 1), 30000);
     return () => clearInterval(timer);
-  }, [dateKey, setItems]);
+  }, []);
   useEffect(() => {
     const onKeyDown = (e) => {
       if (e.key === "Delete" && selectedId) {
-        setItems((prev) => prev.filter((item) => item.id !== selectedId));
+        deleteRecord(selectedId);
         setSelectedId(null);
         setForm(emptyForm);
       }
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [selectedId, setItems]);
+  }, [selectedId]);
 
   const visibleItems = useVisibleItems(items, dateKey);
   const upItems = visibleItems.filter((item) => item.direction === "up");
   const downItems = visibleItems.filter((item) => item.direction === "down");
 
-  const updateForm = (name, value) => { setForm((prev) => { const next = { ...prev, [name]: value }; if (name === "trainNo") { const clean = value.replace(/\D/g, ""); next.trainNo = clean; next.arrivalTime = TRAIN_TIMES[clean] || ""; } if (name === "boarding" && value === "하차") { next.destination = "익산"; next.seatNo = ""; } if (name === "boarding" && value === "승차" && prev.destination === "익산") next.destination = ""; if (name === "type" && (value === "유실물" || value === "역물품")) next.seatNo = ""; if (name === "carNo") { const n = Number(value); next.carNo = value === "" ? "" : Math.min(18, Math.max(1, n)); } return next; }); };
-  const submit = (e) => { e.preventDefault(); if (!TRAIN_TIMES[form.trainNo]) { alert("기존 파일에 등록된 열차번호만 입력할 수 있습니다."); return; } const payload = { ...form, id: form.id || crypto.randomUUID(), direction: getDirection(form.trainNo), contactDone: form.contactDone || false, destination: form.boarding === "하차" ? "익산" : form.destination }; setItems((prev) => (form.id ? prev.map((item) => (item.id === form.id ? payload : item)) : [...prev, payload])); setSelectedId(null); setForm(emptyForm); };
+  const updateForm = (name, value) => { setForm((prev) => { const next = { ...prev, [name]: value }; if (name === "trainNo") { const clean = value.replace(/\D/g, ""); next.trainNo = clean; next.arrivalTime = trainTimes[clean] || ""; } if (name === "boarding" && value === "하차") { next.destination = "익산"; next.seatNo = ""; } if (name === "boarding" && value === "승차" && prev.destination === "익산") next.destination = ""; if (name === "type" && (value === "유실물" || value === "역물품")) next.seatNo = ""; if (name === "carNo") { const n = Number(value); next.carNo = value === "" ? "" : Math.min(18, Math.max(1, n)); } return next; }); };
+  const submit = (e) => { e.preventDefault(); if (!trainTimes[form.trainNo]) { alert("기존 파일에 등록된 열차번호만 입력할 수 있습니다."); return; } const payload = { ...form, id: form.id || crypto.randomUUID(), dateKey, direction: getDirection(form.trainNo), contactDone: form.contactDone || false, destination: form.boarding === "하차" ? "익산" : form.destination }; if (form.id) { updateRecord(form.id, payload); } else { addRecord(payload); } setSelectedId(null); setForm(emptyForm); };
   const selectItem = (item) => { setSelectedId(item.id); setForm(item); };
-  const deleteItem = (id) => { setItems((prev) => prev.filter((item) => item.id !== id)); setContextMenu(null); if (selectedId === id) { setSelectedId(null); setForm(emptyForm); } };
-  const toggleContact = (id) => { setItems((prev) => prev.map((item) => (item.id === id ? { ...item, contactDone: !item.contactDone } : item))); };
+  const deleteItem = (id) => { deleteRecord(id); setContextMenu(null); if (selectedId === id) { setSelectedId(null); setForm(emptyForm); } };
+  const toggleContact = (id) => { const target = items.find((item) => item.id === id);
+    if (target) updateRecord(id, { contactDone: !target.contactDone }); };
   const downloadCsv = () => { const csv = makeCsv(items, dateKey); const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8" }); const url = URL.createObjectURL(blob); const a = document.createElement("a"); a.href = url; a.download = `승하차보조_${dateKey}.csv`; a.click(); URL.revokeObjectURL(url); };
 
   return <BoardLayout adminMode {...{ dateKey, setDateKey, selectedId, setSelectedId, setForm, contextMenu, setContextMenu, upItems, downItems, submit, form, updateForm, downloadCsv, selectItem, toggleContact, deleteItem }} />;
 }
 
-function DisplayPage({ dateKey, items, setItems }) {
+function DisplayPage({ dateKey, items }) {
   const [, forceTick] = useState(0);
-  useEffect(() => { const timer = setInterval(() => { forceTick((v) => v + 1); const now = new Date(); setItems((prev) => prev.filter((item) => (now - new Date(`${dateKey}T${item.arrivalTime}:00`)) / 60000 < 30 || dateKey !== getTodayKey())); }, 30000); return () => clearInterval(timer); }, [dateKey, setItems]);
+  useEffect(() => { const timer = setInterval(() => forceTick((v) => v + 1), 30000); return () => clearInterval(timer); }, []);
   const visibleItems = useVisibleItems(items, dateKey);
   const upItems = visibleItems.filter((item) => item.direction === "up");
   const downItems = visibleItems.filter((item) => item.direction === "down");
@@ -133,7 +117,7 @@ function BoardLayout({ adminMode = false, dateKey, setDateKey, selectedId, setSe
   const mockClassName = adminMode ? "mock" : "mock display-mock";
   const layoutClassName = adminMode ? "layout split" : "layout split display-split";
 
-  return <div className={pageClassName}><div className={mockClassName}>{adminMode && <header className="toolbar"><div className="date-nav"><button className="btn light" onClick={() => setDateKey(addDate(dateKey, -1))}>&lt;</button><div className="date-pill">{formatDateLabel(dateKey)}</div><button className="btn light" onClick={() => setDateKey(addDate(dateKey, 1))}>&gt;</button></div><div className="toolbar-actions"><button className="btn sub" onClick={downloadCsv}>CSV 저장</button></div></header>}<main className={layoutClassName}><div className={adminMode ? "" : "display-board-pane"}><Board title="상선" items={upItems} selectedId={selectedId} onSelect={selectItem} onContext={(e, item) => { if (!adminMode) return; e.preventDefault(); setContextMenu({ x: e.clientX, y: e.clientY, id: item.id }); }} onToggleContact={toggleContact} readonly={!adminMode} /></div><div className={adminMode ? "" : "display-board-pane"}><Board title="하선" items={downItems} selectedId={selectedId} onSelect={selectItem} onContext={(e, item) => { if (!adminMode) return; e.preventDefault(); setContextMenu({ x: e.clientX, y: e.clientY, id: item.id }); }} onToggleContact={toggleContact} readonly={!adminMode} /></div></main>{adminMode && <form className="formbar" onSubmit={submit}><Field label="열차번호"><input value={form.trainNo} onChange={(e) => updateForm("trainNo", e.target.value)} /></Field><Field label="도착시간"><input value={form.arrivalTime} readOnly placeholder="자동 입력" /></Field><Field label="승하차"><select value={form.boarding} onChange={(e) => updateForm("boarding", e.target.value)}>{BOARDING_TYPES.map((v) => <option key={v}>{v}</option>)}</select></Field><Field label="호차"><input type="number" min="1" max="18" value={form.carNo} onChange={(e) => updateForm("carNo", e.target.value)} /></Field><Field label="좌석"><input value={form.seatNo} onChange={(e) => updateForm("seatNo", e.target.value.toUpperCase())} disabled={form.boarding === "하차" || form.type === "유실물" || form.type === "역물품"} /></Field><Field label="분류"><select value={form.type} onChange={(e) => updateForm("type", e.target.value)}>{TYPES.map((v) => <option key={v}>{v}</option>)}</select></Field><Field label="도착역"><input value={form.destination} onChange={(e) => updateForm("destination", e.target.value)} readOnly={form.boarding === "하차"} /></Field><Field label="담당자"><input value={form.manager} onChange={(e) => updateForm("manager", e.target.value)} /></Field><Field label="비고" className="field-wide"><input value={form.memo} onChange={(e) => updateForm("memo", e.target.value)} /></Field><div className="form-actions"><button className="btn" type="submit">{form.id ? "수정" : "등록"}</button><button className="btn sub" type="button" onClick={() => { setForm(emptyForm); setSelectedId(null); }}>초기화</button></div></form>}</div>{adminMode && contextMenu && <button className="context-delete" style={{ left: contextMenu.x, top: contextMenu.y }} onClick={() => deleteItem(contextMenu.id)}>삭제</button>}</div>;
+  return <div className={pageClassName}><div className={mockClassName}>{adminMode && <header className="toolbar"><div className="date-nav"><button className="btn light" onClick={() => setStoreDateKey(addDate(dateKey, -1))}>&lt;</button><div className="date-pill">{formatDateLabel(dateKey)}</div><button className="btn light" onClick={() => setStoreDateKey(addDate(dateKey, 1))}>&gt;</button></div><div className="toolbar-actions"><button className="btn sub" onClick={downloadCsv}>CSV 저장</button></div></header>}<main className={layoutClassName}><div className={adminMode ? "" : "display-board-pane"}><Board title="상선" items={upItems} selectedId={selectedId} onSelect={selectItem} onContext={(e, item) => { if (!adminMode) return; e.preventDefault(); setContextMenu({ x: e.clientX, y: e.clientY, id: item.id }); }} onToggleContact={toggleContact} readonly={!adminMode} /></div><div className={adminMode ? "" : "display-board-pane"}><Board title="하선" items={downItems} selectedId={selectedId} onSelect={selectItem} onContext={(e, item) => { if (!adminMode) return; e.preventDefault(); setContextMenu({ x: e.clientX, y: e.clientY, id: item.id }); }} onToggleContact={toggleContact} readonly={!adminMode} /></div></main>{adminMode && <form className="formbar" onSubmit={submit}><Field label="열차번호"><input value={form.trainNo} onChange={(e) => updateForm("trainNo", e.target.value)} /></Field><Field label="도착시간"><input value={form.arrivalTime} readOnly placeholder="자동 입력" /></Field><Field label="승하차"><select value={form.boarding} onChange={(e) => updateForm("boarding", e.target.value)}>{BOARDING_TYPES.map((v) => <option key={v}>{v}</option>)}</select></Field><Field label="호차"><input type="number" min="1" max="18" value={form.carNo} onChange={(e) => updateForm("carNo", e.target.value)} /></Field><Field label="좌석"><input value={form.seatNo} onChange={(e) => updateForm("seatNo", e.target.value.toUpperCase())} disabled={form.boarding === "하차" || form.type === "유실물" || form.type === "역물품"} /></Field><Field label="분류"><select value={form.type} onChange={(e) => updateForm("type", e.target.value)}>{TYPES.map((v) => <option key={v}>{v}</option>)}</select></Field><Field label="도착역"><input value={form.destination} onChange={(e) => updateForm("destination", e.target.value)} readOnly={form.boarding === "하차"} /></Field><Field label="담당자"><input value={form.manager} onChange={(e) => updateForm("manager", e.target.value)} /></Field><Field label="비고" className="field-wide"><input value={form.memo} onChange={(e) => updateForm("memo", e.target.value)} /></Field><div className="form-actions"><button className="btn" type="submit">{form.id ? "수정" : "등록"}</button><button className="btn sub" type="button" onClick={() => { setForm(emptyForm); setSelectedId(null); }}>초기화</button></div></form>}</div>{adminMode && contextMenu && <button className="context-delete" style={{ left: contextMenu.x, top: contextMenu.y }} onClick={() => deleteItem(contextMenu.id)}>삭제</button>}</div>;
 }
 
 function Field({ label, children, className = "" }) { return <label className={`field ${className}`.trim()}><span>{label}</span>{children}</label>; }
