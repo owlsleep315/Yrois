@@ -3,18 +3,6 @@ import { addRecord, deleteRecord, getRecordsState, setDateKey as setStoreDateKey
 import { Navigate, Route, Routes } from "react-router-dom";
 import "./App.css";
 
-const TRAIN_TIMES = {
-  "1272": "05:15",
-  "508": "11:55",
-  "511": "13:41",
-  "429": "19:01",
-  "509": "12:20",
-  "1404": "12:49",
-  "1111": "19:08",
-  "2222": "19:26",
-  "3333": "19:28",
-};
-
 const TYPES = ["리프트", "휠프트", "휠필", "시각(남)", "시각(여)", "유실물", "역물품", "승하차도움"];
 const BOARDING_TYPES = ["승차", "하차"];
 
@@ -37,17 +25,20 @@ const emptyForm = { id: null, trainNo: "", arrivalTime: "", boarding: "승차", 
 export default function App() {
   const [dateKey, setDateKey] = useState(getTodayKey());
   const [items, setItems] = useState([]);
+  const [trainTimes, setTrainTimes] = useState({});
 
   useEffect(() => {
     let mounted = true;
     getRecordsState().then((state) => {
       if (!mounted) return;
       setDateKey(state.dateKey);
-      setItems(state.items);
+      setItems(state.records || []);
+      setTrainTimes(state.trainTimes || {});
     });
     const unsubscribe = subscribeRecords((state) => {
       setDateKey(state.dateKey);
-      setItems(state.items);
+      setItems(state.records || []);
+      setTrainTimes(state.trainTimes || {});
     });
     return () => {
       mounted = false;
@@ -55,7 +46,7 @@ export default function App() {
     };
   }, []);
 
-  const dataProps = { dateKey, setDateKey, items, setItems };
+  const dataProps = { dateKey, setDateKey, items, setItems, trainTimes };
 
   return (
     <Routes>
@@ -66,7 +57,7 @@ export default function App() {
   );
 }
 
-function AdminPage({ dateKey, setDateKey, items, setItems }) {
+function AdminPage({ dateKey, items, trainTimes }) {
   const [form, setForm] = useState(emptyForm);
   const [selectedId, setSelectedId] = useState(null);
   const [contextMenu, setContextMenu] = useState(null);
@@ -88,14 +79,14 @@ function AdminPage({ dateKey, setDateKey, items, setItems }) {
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [selectedId, setItems]);
+  }, [selectedId]);
 
   const visibleItems = useVisibleItems(items, dateKey);
   const upItems = visibleItems.filter((item) => item.direction === "up");
   const downItems = visibleItems.filter((item) => item.direction === "down");
 
-  const updateForm = (name, value) => { setForm((prev) => { const next = { ...prev, [name]: value }; if (name === "trainNo") { const clean = value.replace(/\D/g, ""); next.trainNo = clean; next.arrivalTime = TRAIN_TIMES[clean] || ""; } if (name === "boarding" && value === "하차") { next.destination = "익산"; next.seatNo = ""; } if (name === "boarding" && value === "승차" && prev.destination === "익산") next.destination = ""; if (name === "type" && (value === "유실물" || value === "역물품")) next.seatNo = ""; if (name === "carNo") { const n = Number(value); next.carNo = value === "" ? "" : Math.min(18, Math.max(1, n)); } return next; }); };
-  const submit = (e) => { e.preventDefault(); if (!TRAIN_TIMES[form.trainNo]) { alert("기존 파일에 등록된 열차번호만 입력할 수 있습니다."); return; } const payload = { ...form, id: form.id || crypto.randomUUID(), direction: getDirection(form.trainNo), contactDone: form.contactDone || false, destination: form.boarding === "하차" ? "익산" : form.destination }; if (form.id) { updateRecord(form.id, payload); } else { addRecord(payload); } setSelectedId(null); setForm(emptyForm); };
+  const updateForm = (name, value) => { setForm((prev) => { const next = { ...prev, [name]: value }; if (name === "trainNo") { const clean = value.replace(/\D/g, ""); next.trainNo = clean; next.arrivalTime = trainTimes[clean] || ""; } if (name === "boarding" && value === "하차") { next.destination = "익산"; next.seatNo = ""; } if (name === "boarding" && value === "승차" && prev.destination === "익산") next.destination = ""; if (name === "type" && (value === "유실물" || value === "역물품")) next.seatNo = ""; if (name === "carNo") { const n = Number(value); next.carNo = value === "" ? "" : Math.min(18, Math.max(1, n)); } return next; }); };
+  const submit = (e) => { e.preventDefault(); if (!trainTimes[form.trainNo]) { alert("기존 파일에 등록된 열차번호만 입력할 수 있습니다."); return; } const payload = { ...form, id: form.id || crypto.randomUUID(), dateKey, direction: getDirection(form.trainNo), contactDone: form.contactDone || false, destination: form.boarding === "하차" ? "익산" : form.destination }; if (form.id) { updateRecord(form.id, payload); } else { addRecord(payload); } setSelectedId(null); setForm(emptyForm); };
   const selectItem = (item) => { setSelectedId(item.id); setForm(item); };
   const deleteItem = (id) => { deleteRecord(id); setContextMenu(null); if (selectedId === id) { setSelectedId(null); setForm(emptyForm); } };
   const toggleContact = (id) => { const target = items.find((item) => item.id === id);

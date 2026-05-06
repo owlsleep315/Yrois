@@ -1,4 +1,4 @@
-const memoryState = { dateKey: formatDateKey(new Date()), items: [] };
+const memoryState = { dateKey: formatDateKey(new Date()), records: [], allRecords: [], trainTimes: {} };
 const listeners = new Set();
 
 function formatDateKey(date) {
@@ -8,44 +8,47 @@ function formatDateKey(date) {
   return `${y}-${m}-${d}`;
 }
 
-function emit(state) {
-  for (const listener of listeners) listener(state);
-}
+function emit(state) { for (const listener of listeners) listener(state); }
+function isElectron() { return typeof window !== 'undefined' && !!window.electronAPI; }
 
-function isElectron() {
-  return typeof window !== 'undefined' && !!window.electronAPI;
+function deriveRecords() {
+  memoryState.records = memoryState.allRecords.filter((item) => item.dateKey === memoryState.dateKey);
 }
 
 export async function getRecordsState() {
   if (isElectron()) return window.electronAPI.getState();
+  deriveRecords();
   return memoryState;
 }
 
 export async function setDateKey(dateKey) {
   if (isElectron()) return window.electronAPI.setDateKey(dateKey);
   memoryState.dateKey = dateKey;
-  memoryState.items = [];
+  deriveRecords();
   emit(memoryState);
   return memoryState;
 }
 
 export async function addRecord(record) {
   if (isElectron()) return window.electronAPI.addRecord(record);
-  memoryState.items = [...memoryState.items, record];
+  memoryState.allRecords = [...memoryState.allRecords, record];
+  deriveRecords();
   emit(memoryState);
   return memoryState;
 }
 
 export async function updateRecord(id, updates) {
   if (isElectron()) return window.electronAPI.updateRecord(id, updates);
-  memoryState.items = memoryState.items.map((item) => (item.id === id ? { ...item, ...updates } : item));
+  memoryState.allRecords = memoryState.allRecords.map((item) => (item.id === id ? { ...item, ...updates } : item));
+  deriveRecords();
   emit(memoryState);
   return memoryState;
 }
 
 export async function deleteRecord(id) {
   if (isElectron()) return window.electronAPI.deleteRecord(id);
-  memoryState.items = memoryState.items.filter((item) => item.id !== id);
+  memoryState.allRecords = memoryState.allRecords.filter((item) => item.id !== id);
+  deriveRecords();
   emit(memoryState);
   return memoryState;
 }
