@@ -226,7 +226,18 @@
 
 .formbar {
   display: grid;
-  grid-template-columns: repeat(10, minmax(90px, 1fr)) 120px;
+  grid-template-columns:
+  70px   /* 열차번호 */
+  70px   /* 도착시간 */
+  70px   /* 승하차 */
+  70px   /* 호차 */
+  70px   /* 좌석 */
+  100px   /* 분류 */
+  90px  /* 도착역 */
+  90px  /* 담당자 */
+  140px /* 비고 */
+  120px  /* 등록 */
+  120px; /* 초기화 */
   gap: 10px;
   padding: 14px 18px;
   background: #f3f6fa;
@@ -262,6 +273,11 @@
   font-weight: 700;
 }
 
+.field textarea {
+  min-height: 56px;
+  padding: 8px 10px;
+  resize: none;
+}
 
 .field input:read-only,
 .field input:disabled,
@@ -271,6 +287,9 @@
   color: #667085;
 }
 
+.memo-field {
+  grid-column: span 2;
+}
 
 .form-actions {
   display: flex;
