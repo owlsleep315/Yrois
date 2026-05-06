@@ -41,12 +41,6 @@
   position: relative;
 }
 
-.toolbar-actions {
-  position: absolute;
-  right: 18px;
-  display: flex;
-  gap: 8px;
-}
 
 .date-nav {
   display: flex;
@@ -196,6 +190,18 @@
   font-size: 0.86em;
 }
 
+.memo-text {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  white-space: normal;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.2;
+  max-height: calc(1.2em * 2);
+  word-break: break-word;
+}
+
 .contact {
   display: inline-flex;
   align-items: center;
@@ -255,15 +261,13 @@
   font-weight: 700;
 }
 
+
 .field input:read-only,
 .field input:disabled {
   background: #eef2f7;
   color: #667085;
 }
 
-.memo-field {
-  grid-column: span 2;
-}
 
 .form-actions {
   display: flex;
@@ -293,10 +297,6 @@
     grid-column: span 4;
   }
 
-  .toolbar-actions {
-    position: static;
-    margin-left: 16px;
-  }
 }
 
 @media (max-width: 760px) {
@@ -309,9 +309,6 @@
     gap: 10px;
   }
 
-  .toolbar-actions {
-    margin-left: 0;
-  }
 
   .date-pill {
     min-width: 210px;
