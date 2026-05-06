@@ -1,11 +1,6 @@
 const fs = require('fs');
 const path = require('path');
 
-const DATA_DIR = path.join(process.cwd(), 'data');
-const HANDOVER_DIR = path.join(DATA_DIR, 'handover');
-const TRAIN_TIMES_PATH = path.join(DATA_DIR, 'train-times.json');
-const RECORDS_PATH = path.join(DATA_DIR, 'boarding-records.json');
-
 const TRAIN_TIMES_SAMPLE = { '102': '09:15', '214': '10:42', '1004': '11:10' };
 
 function ensureDir(dirPath) {
@@ -66,33 +61,52 @@ function makeCsv(records, dateKey) {
   return [headers, ...rows].map((row) => row.map(escapeCsv).join(',')).join('\n');
 }
 
-function regenerateCsv(records, dateKey) {
-  ensureDir(HANDOVER_DIR);
-  const csvPath = path.join(HANDOVER_DIR, `${dateKey}.csv`);
-  const csv = makeCsv(records, dateKey);
-  fs.writeFileSync(csvPath, `\uFEFF${csv}`, 'utf8');
+function resolveDefaultTrainTimes() {
+  const packagedTrainTimesPath = path.join(__dirname, '../data/train-times.json');
+  if (fs.existsSync(packagedTrainTimesPath)) {
+    return safeReadJson(packagedTrainTimesPath, TRAIN_TIMES_SAMPLE);
+  }
+  return TRAIN_TIMES_SAMPLE;
 }
 
-function initStore() {
-  ensureDir(DATA_DIR);
-  ensureDir(HANDOVER_DIR);
-  const trainTimes = safeReadJson(TRAIN_TIMES_PATH, TRAIN_TIMES_SAMPLE);
-  const allRecords = safeReadJson(RECORDS_PATH, []);
-  return { trainTimes, allRecords };
-}
+function createRecordStore(userDataPath) {
+  const DATA_DIR = path.join(userDataPath, 'data');
+  const EXPORTS_DIR = path.join(userDataPath, 'exports');
+  const TRAIN_TIMES_PATH = path.join(DATA_DIR, 'train-times.json');
+  const RECORDS_PATH = path.join(DATA_DIR, 'boarding-records.json');
 
-function persistRecords(records) {
-  writeJson(RECORDS_PATH, records);
+  function initStore() {
+    ensureDir(DATA_DIR);
+    ensureDir(EXPORTS_DIR);
+    const trainTimes = safeReadJson(TRAIN_TIMES_PATH, resolveDefaultTrainTimes());
+    const allRecords = safeReadJson(RECORDS_PATH, []);
+    return { trainTimes, allRecords };
+  }
+
+  function persistRecords(records) {
+    writeJson(RECORDS_PATH, records);
+  }
+
+  function regenerateCsv(records, dateKey) {
+    ensureDir(EXPORTS_DIR);
+    const csvPath = path.join(EXPORTS_DIR, `${dateKey}.csv`);
+    const csv = makeCsv(records, dateKey);
+    fs.writeFileSync(csvPath, `\uFEFF${csv}`, 'utf8');
+  }
+
+  return {
+    initStore,
+    persistRecords,
+    regenerateCsv,
+    paths: {
+      DATA_DIR,
+      EXPORTS_DIR,
+      TRAIN_TIMES_PATH,
+      RECORDS_PATH,
+    },
+  };
 }
 
 module.exports = {
-  initStore,
-  persistRecords,
-  regenerateCsv,
-  paths: {
-    DATA_DIR,
-    HANDOVER_DIR,
-    TRAIN_TIMES_PATH,
-    RECORDS_PATH,
-  },
+  createRecordStore,
 };
