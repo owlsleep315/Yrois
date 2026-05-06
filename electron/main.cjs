@@ -1,13 +1,16 @@
 const { app, BrowserWindow, screen, ipcMain } = require('electron');
 const path = require('path');
-const { initStore, persistRecords, regenerateCsv } = require('./recordFileStore.cjs');
+const { createRecordStore } = require('./recordFileStore.cjs');
 
 const isDev = !app.isPackaged;
-const DEV_SERVER_URL = 'http://localhost:5173';
+const DEV_SERVER_URL = process.env.VITE_DEV_SERVER_URL || 'http://localhost:5173';
 const APP_ICON_PATH = path.join(__dirname, '../public/yrois_logo.ico');
+const PRELOAD_PATH = path.join(__dirname, 'preload.cjs');
+const RENDERER_INDEX_PATH = path.join(__dirname, '../dist/index.html');
 
 let adminWindow;
 let displayWindow;
+let recordStore;
 
 function formatDateKey(date) {
   const y = date.getFullYear();
@@ -16,11 +19,10 @@ function formatDateKey(date) {
   return `${y}-${m}-${d}`;
 }
 
-const loaded = initStore();
 const state = {
   dateKey: formatDateKey(new Date()),
-  trainTimes: loaded.trainTimes,
-  allRecords: loaded.allRecords,
+  trainTimes: {},
+  allRecords: [],
 };
 
 function getStatePayload() {
@@ -41,8 +43,8 @@ function broadcastState() {
 
 function persistAndBroadcast(changedDates = []) {
   try {
-    persistRecords(state.allRecords);
-    for (const dateKey of new Set(changedDates.filter(Boolean))) regenerateCsv(state.allRecords, dateKey);
+    recordStore.persistRecords(state.allRecords);
+    for (const dateKey of new Set(changedDates.filter(Boolean))) recordStore.regenerateCsv(state.allRecords, dateKey);
   } catch (error) {
     console.error('Failed to persist records:', error);
     throw error;
@@ -76,12 +78,20 @@ function setupIpcHandlers() {
   ipcMain.handle('trainTimes:get', () => state.trainTimes);
 }
 
+function loadRoute(window, route) {
+  if (isDev) {
+    window.loadURL(`${DEV_SERVER_URL}/#${route}`);
+    return;
+  }
+  window.loadFile(RENDERER_INDEX_PATH, { hash: route });
+}
+
 function createWindows() {
   const displays = screen.getAllDisplays();
   const primaryDisplay = screen.getPrimaryDisplay();
   const secondaryDisplay = displays.find((display) => display.id !== primaryDisplay.id) || primaryDisplay;
 
-  if (process.platform === "win32") app.setAppUserModelId("com.yrois.app");
+  if (process.platform === 'win32') app.setAppUserModelId('com.yrois.app');
 
   adminWindow = new BrowserWindow({
     x: primaryDisplay.bounds.x,
@@ -90,7 +100,7 @@ function createWindows() {
     height: 800,
     icon: APP_ICON_PATH,
     title: '승하차 보조 등록 화면',
-    webPreferences: { preload: path.join(__dirname, 'preload.cjs'), contextIsolation: true, nodeIntegration: false },
+    webPreferences: { preload: PRELOAD_PATH, contextIsolation: true, nodeIntegration: false },
   });
 
   displayWindow = new BrowserWindow({
@@ -102,24 +112,24 @@ function createWindows() {
     title: '승하차 보조 표시 화면',
     fullscreen: true,
     autoHideMenuBar: true,
-    webPreferences: { preload: path.join(__dirname, 'preload.cjs'), contextIsolation: true, nodeIntegration: false },
+    webPreferences: { preload: PRELOAD_PATH, contextIsolation: true, nodeIntegration: false },
   });
 
-  if (isDev) {
-    adminWindow.loadURL(`${DEV_SERVER_URL}/#/admin`);
-    displayWindow.loadURL(`${DEV_SERVER_URL}/#/display`);
-    adminWindow.webContents.openDevTools({ mode: 'detach' });
-  } else {
-    adminWindow.loadFile(path.join(__dirname, "../dist/index.html"), {
-      hash: "/admin",
-    });
+  loadRoute(adminWindow, '/admin');
+  loadRoute(displayWindow, '/display');
 
-    displayWindow.loadFile(path.join(__dirname, "../dist/index.html"), {
-      hash: "/display",
-    });
+  if (isDev) {
+    adminWindow.webContents.openDevTools({ mode: 'detach' });
   }
 }
 
-app.whenReady().then(() => { setupIpcHandlers(); createWindows(); });
+app.whenReady().then(() => {
+  recordStore = createRecordStore(app.getPath('userData'));
+  const loaded = recordStore.initStore();
+  state.trainTimes = loaded.trainTimes;
+  state.allRecords = loaded.allRecords;
+  setupIpcHandlers();
+  createWindows();
+});
 app.on('window-all-closed', () => { if (process.platform !== 'darwin') app.quit(); });
 app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createWindows(); });
