@@ -6,6 +6,7 @@ body,
 
 body {
   margin: 0;
+  overflow-x: hidden;
   font-family: "Pretendard", "Noto Sans KR", "Malgun Gothic", Arial, sans-serif;
   background: #e9edf3;
 }
