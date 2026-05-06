@@ -41,12 +41,6 @@
   position: relative;
 }
 
-.toolbar-actions {
-  position: absolute;
-  right: 18px;
-  display: flex;
-  gap: 8px;
-}
 
 .date-nav {
   display: flex;
@@ -196,6 +190,18 @@
   font-size: 0.86em;
 }
 
+.memo-text {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  white-space: normal;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.2;
+  max-height: calc(1.2em * 2);
+  word-break: break-word;
+}
+
 .contact {
   display: inline-flex;
   align-items: center;
@@ -244,7 +250,8 @@
 }
 
 .field input,
-.field select {
+.field select,
+.field textarea {
   height: 38px;
   border: 1px solid #c7cfdb;
   background: #fff;
@@ -255,8 +262,16 @@
   font-weight: 700;
 }
 
+.field textarea {
+  min-height: 56px;
+  padding: 8px 10px;
+  resize: none;
+}
+
 .field input:read-only,
-.field input:disabled {
+.field input:disabled,
+.field textarea:read-only,
+.field textarea:disabled {
   background: #eef2f7;
   color: #667085;
 }
@@ -293,10 +308,6 @@
     grid-column: span 4;
   }
 
-  .toolbar-actions {
-    position: static;
-    margin-left: 16px;
-  }
 }
 
 @media (max-width: 760px) {
@@ -309,9 +320,6 @@
     gap: 10px;
   }
 
-  .toolbar-actions {
-    margin-left: 0;
-  }
 
   .date-pill {
     min-width: 210px;
