@@ -28,3 +28,9 @@ data/boarding-records.json
 
 # 날짜별 CSV 인수인계 파일
 data/handover/*.csv
+
+# release 폴더 전체 무시
+release/*
+
+# exe 파일은 추적
+!release/*.exe
