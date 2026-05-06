@@ -105,9 +105,19 @@ function createWindows() {
     webPreferences: { preload: path.join(__dirname, 'preload.cjs'), contextIsolation: true, nodeIntegration: false },
   });
 
-  adminWindow.loadURL(`${DEV_SERVER_URL}/admin`);
-  displayWindow.loadURL(`${DEV_SERVER_URL}/display`);
-  if (isDev) adminWindow.webContents.openDevTools({ mode: 'detach' });
+  if (isDev) {
+    adminWindow.loadURL(`${DEV_SERVER_URL}/#/admin`);
+    displayWindow.loadURL(`${DEV_SERVER_URL}/#/display`);
+    adminWindow.webContents.openDevTools({ mode: 'detach' });
+  } else {
+    adminWindow.loadFile(path.join(__dirname, "../dist/index.html"), {
+      hash: "/admin",
+    });
+
+    displayWindow.loadFile(path.join(__dirname, "../dist/index.html"), {
+      hash: "/display",
+    });
+  }
 }
 
 app.whenReady().then(() => { setupIpcHandlers(); createWindows(); });
