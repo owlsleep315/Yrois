@@ -20,12 +20,12 @@
     "trainNo": "214",
     "arrivalTime": "10:42",
     "boarding": "승차",
-    "carNo": "",
-    "seatNo": "",
-    "type": "리프트",
-    "destination": "",
-    "manager": "",
-    "memo": "일이삼사오육칠팔ㅇ아ㅏㅏㅏㅏㅏㅏㅏㅏ",
+    "carNo": 8,
+    "seatNo": "2A",
+    "type": "승하차도움",
+    "destination": "광주송정역",
+    "manager": "준호주임님",
+    "memo": "일이삼사오육칠팔구십일이삼사오육칠팔구십",
     "dateKey": "2026-05-07",
     "direction": "up",
     "contactDone": true,
@@ -134,7 +134,7 @@
     "memo": "",
     "dateKey": "2026-05-07",
     "direction": "up",
-    "contactDone": false
+    "contactDone": true
   },
   {
     "id": "ad26bdae-4253-41b4-ba2b-e1e318daddee",
@@ -179,6 +179,36 @@
     "memo": "",
     "dateKey": "2026-05-07",
     "direction": "up",
+    "contactDone": false
+  },
+  {
+    "id": "54c640d3-4886-4a83-bb77-55f9cbe24d50",
+    "trainNo": "1111",
+    "arrivalTime": "00:01",
+    "boarding": "승차",
+    "carNo": "",
+    "seatNo": "",
+    "type": "리프트",
+    "destination": "",
+    "manager": "",
+    "memo": "",
+    "dateKey": "2026-05-07",
+    "direction": "down",
+    "contactDone": false
+  },
+  {
+    "id": "3d475758-5056-4b73-aadf-89248530e7c9",
+    "trainNo": "1111",
+    "arrivalTime": "00:01",
+    "boarding": "승차",
+    "carNo": "",
+    "seatNo": "",
+    "type": "리프트",
+    "destination": "",
+    "manager": "",
+    "memo": "",
+    "dateKey": "2026-05-07",
+    "direction": "down",
     "contactDone": false
   }
 ]
