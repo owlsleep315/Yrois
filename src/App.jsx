@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { addRecord, deleteRecord, getRecordsState, setDateKey as setStoreDateKey, subscribeRecords, updateRecord } from "./services/recordStore";
+import { addRecord, deleteRecord, getRecordsState, setDateKey as updateDateKey, subscribeRecords, updateRecord } from "./services/recordStore";
 import { Navigate, Route, Routes } from "react-router-dom";
 import "./App.css";
 
@@ -23,7 +23,7 @@ function makeCsv(items, dateKey) {
 const emptyForm = { id: null, trainNo: "", arrivalTime: "", boarding: "승차", carNo: "", seatNo: "", type: "리프트", destination: "", manager: "", memo: "" };
 
 export default function App() {
-  const [dateKey, setDateKey] = useState(getTodayKey());
+  const [selectedDateKey, setSelectedDateKey] = useState(getTodayKey());
   const [items, setItems] = useState([]);
   const [trainTimes, setTrainTimes] = useState({});
 
@@ -31,12 +31,12 @@ export default function App() {
     let mounted = true;
     getRecordsState().then((state) => {
       if (!mounted) return;
-      setDateKey(state.dateKey);
+      setSelectedDateKey(state.dateKey);
       setItems(state.records || []);
       setTrainTimes(state.trainTimes || {});
     });
     const unsubscribe = subscribeRecords((state) => {
-      setDateKey(state.dateKey);
+      setSelectedDateKey(state.dateKey);
       setItems(state.records || []);
       setTrainTimes(state.trainTimes || {});
     });
@@ -46,7 +46,12 @@ export default function App() {
     };
   }, []);
 
-  const dataProps = { dateKey, setDateKey, items, setItems, trainTimes };
+  const changeDateKey = (nextDateKey) => {
+    setSelectedDateKey(nextDateKey);
+    updateDateKey(nextDateKey);
+  };
+
+  const dataProps = { dateKey: selectedDateKey, changeDateKey, items, trainTimes };
 
   return (
     <Routes>
@@ -57,7 +62,7 @@ export default function App() {
   );
 }
 
-function AdminPage({ dateKey, items, trainTimes }) {
+function AdminPage({ dateKey, changeDateKey, items, trainTimes }) {
   const [form, setForm] = useState(emptyForm);
   const [selectedId, setSelectedId] = useState(null);
   const [contextMenu, setContextMenu] = useState(null);
@@ -93,7 +98,7 @@ function AdminPage({ dateKey, items, trainTimes }) {
     if (target) updateRecord(id, { contactDone: !target.contactDone }); };
   const downloadCsv = () => { const csv = makeCsv(items, dateKey); const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8" }); const url = URL.createObjectURL(blob); const a = document.createElement("a"); a.href = url; a.download = `승하차보조_${dateKey}.csv`; a.click(); URL.revokeObjectURL(url); };
 
-  return <BoardLayout adminMode {...{ dateKey, setDateKey, selectedId, setSelectedId, setForm, contextMenu, setContextMenu, upItems, downItems, submit, form, updateForm, downloadCsv, selectItem, toggleContact, deleteItem }} />;
+  return <BoardLayout adminMode {...{ dateKey, changeDateKey, selectedId, setSelectedId, setForm, contextMenu, setContextMenu, upItems, downItems, submit, form, updateForm, downloadCsv, selectItem, toggleContact, deleteItem }} />;
 }
 
 function DisplayPage({ dateKey, items }) {
@@ -112,12 +117,12 @@ function useVisibleItems(items, dateKey) {
   }, [items, dateKey]);
 }
 
-function BoardLayout({ adminMode = false, dateKey, setDateKey, selectedId, setSelectedId, setForm, contextMenu, setContextMenu, upItems, downItems, submit, form, updateForm, downloadCsv, selectItem, toggleContact, deleteItem }) {
+function BoardLayout({ adminMode = false, dateKey, changeDateKey, selectedId, setSelectedId, setForm, contextMenu, setContextMenu, upItems, downItems, submit, form, updateForm, downloadCsv, selectItem, toggleContact, deleteItem }) {
   const pageClassName = adminMode ? "app" : "app display-page";
   const mockClassName = adminMode ? "mock" : "mock display-mock";
   const layoutClassName = adminMode ? "layout split" : "layout split display-split";
 
-  return <div className={pageClassName}><div className={mockClassName}>{adminMode && <header className="toolbar"><div className="date-nav"><button className="btn light" onClick={() => setStoreDateKey(addDate(dateKey, -1))}>&lt;</button><div className="date-pill">{formatDateLabel(dateKey)}</div><button className="btn light" onClick={() => setStoreDateKey(addDate(dateKey, 1))}>&gt;</button></div><div className="toolbar-actions"><button className="btn sub" onClick={downloadCsv}>CSV 저장</button></div></header>}<main className={layoutClassName}><div className={adminMode ? "" : "display-board-pane"}><Board title="상선" items={upItems} selectedId={selectedId} onSelect={selectItem} onContext={(e, item) => { if (!adminMode) return; e.preventDefault(); setContextMenu({ x: e.clientX, y: e.clientY, id: item.id }); }} onToggleContact={toggleContact} readonly={!adminMode} /></div><div className={adminMode ? "" : "display-board-pane"}><Board title="하선" items={downItems} selectedId={selectedId} onSelect={selectItem} onContext={(e, item) => { if (!adminMode) return; e.preventDefault(); setContextMenu({ x: e.clientX, y: e.clientY, id: item.id }); }} onToggleContact={toggleContact} readonly={!adminMode} /></div></main>{adminMode && <form className="formbar" onSubmit={submit}><Field label="열차번호"><input value={form.trainNo} onChange={(e) => updateForm("trainNo", e.target.value)} /></Field><Field label="도착시간"><input value={form.arrivalTime} readOnly placeholder="자동 입력" /></Field><Field label="승하차"><select value={form.boarding} onChange={(e) => updateForm("boarding", e.target.value)}>{BOARDING_TYPES.map((v) => <option key={v}>{v}</option>)}</select></Field><Field label="호차"><input type="number" min="1" max="18" value={form.carNo} onChange={(e) => updateForm("carNo", e.target.value)} /></Field><Field label="좌석"><input value={form.seatNo} onChange={(e) => updateForm("seatNo", e.target.value.toUpperCase())} disabled={form.boarding === "하차" || form.type === "유실물" || form.type === "역물품"} /></Field><Field label="분류"><select value={form.type} onChange={(e) => updateForm("type", e.target.value)}>{TYPES.map((v) => <option key={v}>{v}</option>)}</select></Field><Field label="도착역"><input value={form.destination} onChange={(e) => updateForm("destination", e.target.value)} readOnly={form.boarding === "하차"} /></Field><Field label="담당자"><input value={form.manager} onChange={(e) => updateForm("manager", e.target.value)} /></Field><Field label="비고" className="field-wide"><input value={form.memo} onChange={(e) => updateForm("memo", e.target.value)} /></Field><div className="form-actions"><button className="btn" type="submit">{form.id ? "수정" : "등록"}</button><button className="btn sub" type="button" onClick={() => { setForm(emptyForm); setSelectedId(null); }}>초기화</button></div></form>}</div>{adminMode && contextMenu && <button className="context-delete" style={{ left: contextMenu.x, top: contextMenu.y }} onClick={() => deleteItem(contextMenu.id)}>삭제</button>}</div>;
+  return <div className={pageClassName}><div className={mockClassName}>{adminMode && <header className="toolbar"><div className="date-nav"><button className="btn light" onClick={() => changeDateKey(addDate(dateKey, -1))}>&lt;</button><div className="date-pill">{formatDateLabel(dateKey)}</div><button className="btn light" onClick={() => changeDateKey(addDate(dateKey, 1))}>&gt;</button></div><div className="toolbar-actions"><button className="btn sub" onClick={downloadCsv}>CSV 저장</button></div></header>}<main className={layoutClassName}><div className={adminMode ? "" : "display-board-pane"}><Board title="상선" items={upItems} selectedId={selectedId} onSelect={selectItem} onContext={(e, item) => { if (!adminMode) return; e.preventDefault(); setContextMenu({ x: e.clientX, y: e.clientY, id: item.id }); }} onToggleContact={toggleContact} readonly={!adminMode} /></div><div className={adminMode ? "" : "display-board-pane"}><Board title="하선" items={downItems} selectedId={selectedId} onSelect={selectItem} onContext={(e, item) => { if (!adminMode) return; e.preventDefault(); setContextMenu({ x: e.clientX, y: e.clientY, id: item.id }); }} onToggleContact={toggleContact} readonly={!adminMode} /></div></main>{adminMode && <form className="formbar" onSubmit={submit}><Field label="열차번호"><input value={form.trainNo} onChange={(e) => updateForm("trainNo", e.target.value)} /></Field><Field label="도착시간"><input value={form.arrivalTime} readOnly placeholder="자동 입력" /></Field><Field label="승하차"><select value={form.boarding} onChange={(e) => updateForm("boarding", e.target.value)}>{BOARDING_TYPES.map((v) => <option key={v}>{v}</option>)}</select></Field><Field label="호차"><input type="number" min="1" max="18" value={form.carNo} onChange={(e) => updateForm("carNo", e.target.value)} /></Field><Field label="좌석"><input value={form.seatNo} onChange={(e) => updateForm("seatNo", e.target.value.toUpperCase())} disabled={form.boarding === "하차" || form.type === "유실물" || form.type === "역물품"} /></Field><Field label="분류"><select value={form.type} onChange={(e) => updateForm("type", e.target.value)}>{TYPES.map((v) => <option key={v}>{v}</option>)}</select></Field><Field label="도착역"><input value={form.destination} onChange={(e) => updateForm("destination", e.target.value)} readOnly={form.boarding === "하차"} /></Field><Field label="담당자"><input value={form.manager} onChange={(e) => updateForm("manager", e.target.value)} /></Field><Field label="비고" className="field-wide"><input value={form.memo} onChange={(e) => updateForm("memo", e.target.value)} /></Field><div className="form-actions"><button className="btn" type="submit">{form.id ? "수정" : "등록"}</button><button className="btn sub" type="button" onClick={() => { setForm(emptyForm); setSelectedId(null); }}>초기화</button></div></form>}</div>{adminMode && contextMenu && <button className="context-delete" style={{ left: contextMenu.x, top: contextMenu.y }} onClick={() => deleteItem(contextMenu.id)}>삭제</button>}</div>;
 }
 
 function Field({ label, children, className = "" }) { return <label className={`field ${className}`.trim()}><span>{label}</span>{children}</label>; }
