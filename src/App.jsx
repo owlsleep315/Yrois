@@ -28,35 +28,59 @@ function getSeatDisplay(carNo, seatNo) { if (!carNo) return "-"; return <><span 
 const emptyForm = { id: null, trainNo: "", arrivalTime: "", boarding: "승차", carNo: "", seatNo: "", type: "리프트", destination: "", manager: "", memo: "" };
 
 export default function App() {
-  const [selectedDateKey, setSelectedDateKey] = useState(getTodayKey());
-  const [items, setItems] = useState([]);
-  const [trainTimes, setTrainTimes] = useState({});
+  const [recordsState, setRecordsState] = useState({
+    dateKey: getTodayKey(),
+    records: [],
+    allRecords: [],
+    trainTimes: {},
+  });
 
   useEffect(() => {
     let mounted = true;
+    const applyState = (nextState) => {
+      setRecordsState({
+        dateKey: nextState?.dateKey || getTodayKey(),
+        records: nextState?.records || [],
+        allRecords: nextState?.allRecords || [],
+        trainTimes: nextState?.trainTimes || {},
+      });
+    };
+
     getRecordsState().then((state) => {
       if (!mounted) return;
-      setSelectedDateKey(state.dateKey);
-      setItems(state.records || []);
-      setTrainTimes(state.trainTimes || {});
+      applyState(state);
     });
+
     const unsubscribe = subscribeRecords((state) => {
-      setSelectedDateKey(state.dateKey);
-      setItems(state.records || []);
-      setTrainTimes(state.trainTimes || {});
+      applyState(state);
     });
+
     return () => {
       mounted = false;
       unsubscribe?.();
     };
   }, []);
 
-  const changeDateKey = (nextDateKey) => {
-    setSelectedDateKey(nextDateKey);
-    updateDateKey(nextDateKey);
+  const changeDateKey = async (nextDateKey) => {
+    setRecordsState((prev) => ({ ...prev, dateKey: nextDateKey }));
+    const latestState = await updateDateKey(nextDateKey);
+    if (latestState) {
+      setRecordsState({
+        dateKey: latestState?.dateKey || nextDateKey,
+        records: latestState?.records || [],
+        allRecords: latestState?.allRecords || [],
+        trainTimes: latestState?.trainTimes || {},
+      });
+    }
   };
 
-  const dataProps = { dateKey: selectedDateKey, changeDateKey, items, trainTimes };
+  const dataProps = {
+    recordsState,
+    dateKey: recordsState.dateKey,
+    changeDateKey,
+    items: recordsState.records,
+    trainTimes: recordsState.trainTimes,
+  };
 
   return (
     <Routes>
@@ -67,7 +91,7 @@ export default function App() {
   );
 }
 
-function AdminPage({ dateKey, changeDateKey, items, trainTimes }) {
+function AdminPage({ recordsState, dateKey, changeDateKey, trainTimes }) {
   const [form, setForm] = useState(emptyForm);
   const [selectedId, setSelectedId] = useState(null);
   const [contextMenu, setContextMenu] = useState(null);
@@ -87,7 +111,7 @@ function AdminPage({ dateKey, changeDateKey, items, trainTimes }) {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [selectedId]);
 
-  const visibleItems = useVisibleItems(items, dateKey, now);
+  const visibleItems = useVisibleItems(recordsState, now);
   const upItems = visibleItems.filter((item) => item.direction === "up");
   const downItems = visibleItems.filter((item) => item.direction === "down");
 
@@ -96,14 +120,16 @@ function AdminPage({ dateKey, changeDateKey, items, trainTimes }) {
   const submit = (e) => { e.preventDefault(); if (!trainTimes[form.trainNo]) { alert("기존 파일에 등록된 열차번호만 입력할 수 있습니다."); return; } if (!validateLength(form.destination, MAX_DESTINATION_LENGTH, "도착역")) return; if (!validateLength(form.manager, MAX_MANAGER_LENGTH, "담당자")) return; if (!validateLength(form.memo, MAX_MEMO_LENGTH, "비고")) return; const payload = { ...form, id: form.id || crypto.randomUUID(), dateKey, direction: getDirection(form.trainNo), contactDone: form.contactDone || false, destination: form.boarding === "하차" ? "익산" : form.destination }; if (form.id) { updateRecord(form.id, payload); } else { addRecord(payload); } setSelectedId(null); setForm(emptyForm); };
   const selectItem = (item) => { setSelectedId(item.id); setForm(item); };
   const deleteItem = (id) => { deleteRecord(id); setContextMenu(null); if (selectedId === id) { setSelectedId(null); setForm(emptyForm); } };
-  const toggleContact = (id) => { const target = items.find((item) => item.id === id);
-    if (target) updateRecord(id, { contactDone: !target.contactDone }); };
+  const toggleContact = (id) => {
+    const target = (recordsState.allRecords || []).find((item) => item.id === id);
+    if (target) updateRecord(id, { contactDone: !target.contactDone });
+  };
   return <BoardLayout adminMode {...{ dateKey, changeDateKey, selectedId, setSelectedId, setForm, contextMenu, setContextMenu, upItems, downItems, submit, form, updateForm, selectItem, toggleContact, deleteItem }} />;
 }
 
-function DisplayPage({ dateKey, items }) {
+function DisplayPage({ recordsState }) {
   const now = useNowTick();
-  const visibleItems = useVisibleItems(items, dateKey, now);
+  const visibleItems = useVisibleItems(recordsState, now);
   const upItems = visibleItems.filter((item) => item.direction === "up");
   const downItems = visibleItems.filter((item) => item.direction === "down");
   return <BoardLayout upItems={upItems} downItems={downItems} />;
@@ -133,12 +159,16 @@ function getItemTimeState(item, selectedDateKey, now) {
   return { hidden: false, isPast: false };
 }
 
-function useVisibleItems(items, dateKey, now) {
+function useVisibleItems(recordsState, now) {
+  const records = recordsState?.records || [];
+  const dateKey = recordsState?.dateKey;
+
   return useMemo(() => {
-    return items.map((item) => ({ ...item, ...getItemTimeState(item, dateKey, now) }))
+    return records
+      .map((item) => ({ ...item, ...getItemTimeState(item, dateKey, now) }))
       .filter((item) => !item.hidden)
       .sort((a, b) => a.arrivalTime.localeCompare(b.arrivalTime));
-  }, [items, dateKey, now]);
+  }, [records, dateKey, now]);
 }
 
 function BoardLayout({ adminMode = false, dateKey, changeDateKey, selectedId, setSelectedId, setForm, contextMenu, setContextMenu, upItems, downItems, submit, form, updateForm, selectItem, toggleContact, deleteItem }) {
