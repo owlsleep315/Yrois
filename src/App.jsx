@@ -13,6 +13,14 @@ const MAX_MEMO_LENGTH = 20;
 function formatDateKey(date) { const y = date.getFullYear(); const m = String(date.getMonth() + 1).padStart(2, "0"); const d = String(date.getDate()).padStart(2, "0"); return `${y}-${m}-${d}`; }
 function parseDateKey(dateKey) { const [y, m, d] = dateKey.split("-").map(Number); return new Date(y, m - 1, d); }
 function getTodayKey() { return formatDateKey(new Date()); }
+function parseRecordDateTime(dateKey, arrivalTime) {
+  if (!dateKey || !arrivalTime) return null;
+  const [hours, minutes] = arrivalTime.split(":").map(Number);
+  if (!Number.isFinite(hours) || !Number.isFinite(minutes)) return null;
+  const date = parseDateKey(dateKey);
+  date.setHours(hours, minutes, 0, 0);
+  return date;
+}
 function formatDateLabel(dateKey) { const date = parseDateKey(dateKey); const weekdays = ["일요일", "월요일", "화요일", "수요일", "목요일", "금요일", "토요일"]; return `${dateKey} ${weekdays[date.getDay()]}`; }
 function addDate(dateKey, amount) { const date = parseDateKey(dateKey); date.setDate(date.getDate() + amount); return formatDateKey(date); }
 function getDirection(trainNo) { return Number(trainNo) % 2 === 0 ? "up" : "down"; }
@@ -63,14 +71,10 @@ function AdminPage({ dateKey, changeDateKey, items, trainTimes }) {
   const [form, setForm] = useState(emptyForm);
   const [selectedId, setSelectedId] = useState(null);
   const [contextMenu, setContextMenu] = useState(null);
-  const [, forceTick] = useState(0);
+  const now = useNowTick();
 
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { setSelectedId(null); setForm(emptyForm); }, [dateKey]);
-  useEffect(() => {
-    const timer = setInterval(() => forceTick((v) => v + 1), 30000);
-    return () => clearInterval(timer);
-  }, []);
   useEffect(() => {
     const onKeyDown = (e) => {
       if (e.key === "Delete" && selectedId) {
@@ -83,7 +87,7 @@ function AdminPage({ dateKey, changeDateKey, items, trainTimes }) {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [selectedId]);
 
-  const visibleItems = useVisibleItems(items, dateKey);
+  const visibleItems = useVisibleItems(items, dateKey, now);
   const upItems = visibleItems.filter((item) => item.direction === "up");
   const downItems = visibleItems.filter((item) => item.direction === "down");
 
@@ -98,19 +102,43 @@ function AdminPage({ dateKey, changeDateKey, items, trainTimes }) {
 }
 
 function DisplayPage({ dateKey, items }) {
-  const [, forceTick] = useState(0);
-  useEffect(() => { const timer = setInterval(() => forceTick((v) => v + 1), 30000); return () => clearInterval(timer); }, []);
-  const visibleItems = useVisibleItems(items, dateKey);
+  const now = useNowTick();
+  const visibleItems = useVisibleItems(items, dateKey, now);
   const upItems = visibleItems.filter((item) => item.direction === "up");
   const downItems = visibleItems.filter((item) => item.direction === "down");
   return <BoardLayout upItems={upItems} downItems={downItems} />;
 }
 
-function useVisibleItems(items, dateKey) {
+function useNowTick(intervalMs = 30000) {
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const timer = setInterval(() => setNow(new Date()), intervalMs);
+    return () => clearInterval(timer);
+  }, [intervalMs]);
+  return now;
+}
+
+function getItemTimeState(item, selectedDateKey, now) {
+  const targetDateKey = item.dateKey || selectedDateKey;
+  const trainDateTime = parseRecordDateTime(targetDateKey, item.arrivalTime);
+  if (!trainDateTime) return { hidden: false, isPast: false };
+
+  const todayKey = formatDateKey(now);
+  if (targetDateKey < todayKey) return { hidden: true, isPast: false };
+  if (targetDateKey > todayKey) return { hidden: false, isPast: false };
+
+  const diffMinutes = (trainDateTime.getTime() - now.getTime()) / 60000;
+  if (diffMinutes < -30) return { hidden: true, isPast: false };
+  if (diffMinutes < -10) return { hidden: false, isPast: true };
+  return { hidden: false, isPast: false };
+}
+
+function useVisibleItems(items, dateKey, now) {
   return useMemo(() => {
-    const now = new Date();
-    return items.map((item) => ({ ...item, isPast: dateKey === getTodayKey() && (now - new Date(`${dateKey}T${item.arrivalTime}:00`)) / 60000 >= 10 })).sort((a, b) => a.arrivalTime.localeCompare(b.arrivalTime));
-  }, [items, dateKey]);
+    return items.map((item) => ({ ...item, ...getItemTimeState(item, dateKey, now) }))
+      .filter((item) => !item.hidden)
+      .sort((a, b) => a.arrivalTime.localeCompare(b.arrivalTime));
+  }, [items, dateKey, now]);
 }
 
 function BoardLayout({ adminMode = false, dateKey, changeDateKey, selectedId, setSelectedId, setForm, contextMenu, setContextMenu, upItems, downItems, submit, form, updateForm, selectItem, toggleContact, deleteItem }) {
@@ -135,4 +163,4 @@ function BoardLayout({ adminMode = false, dateKey, changeDateKey, selectedId, se
 
 
 function Field({ label, children, className = "" }) { return <label className={`field ${className}`.trim()}><span>{label}</span>{children}</label>; }
-function Board({ title, items, selectedId, onSelect, onContext, onToggleContact, readonly = false }) { return <section className="board"><div className="board-title"><strong>{title}</strong><span>{items.length}건</span></div><div className="table-wrap"><table className="table"><colgroup><col style={{ width: "8%" }} /><col style={{ width: "8%" }} /><col style={{ width: "8%" }} /><col style={{ width: "10%" }} /><col style={{ width: "10%" }} /><col style={{ width: "8%" }} /><col style={{ width: "10%" }} /><col style={{ width: "7%" }} /><col style={{ width: "13%" }} /></colgroup><thead><tr><th>열차번호</th><th>도착시간</th><th>승하차</th><th>좌석</th><th>분류</th><th>도착역</th><th>담당자</th><th>연락 상태</th><th>비고</th></tr></thead><tbody>{items.length === 0 && <tr><td className="empty-row" colSpan="9">등록된 승하차보조 건이 없습니다.</td></tr>}{items.map((item) => <tr key={item.id} className={`${item.isPast ? "past" : ""} ${selectedId === item.id ? "selected" : ""}`} onClick={() => !readonly && onSelect?.(item)} onContextMenu={(e) => onContext?.(e, item)}><td className="train-no">#{item.trainNo}</td><td>{item.arrivalTime}</td><td className={item.boarding === "승차" ? "boarding up" : "boarding down"}>{item.boarding === "승차" ? "↑ 승차" : "↓ 하차"}</td><td>{getSeatDisplay(item.carNo, item.seatNo)}</td><td>{item.type}</td><td>{item.destination || "-"}</td><td><span className="small-text">{item.manager || "-"}</span></td><td onClick={(e) => e.stopPropagation()}>{item.boarding === "승차" ? <label className="contact"><input type="checkbox" checked={item.contactDone} disabled={readonly} onChange={() => onToggleContact?.(item.id)} /></label> : <span className="contact empty">-</span>}</td><td><span className="small-text memo-text">{item.memo || "-"}</span></td></tr>)}</tbody></table></div></section>; }
+function Board({ title, items, selectedId, onSelect, onContext, onToggleContact, readonly = false }) { return <section className="board"><div className="board-title"><strong>{title}</strong><span>{items.length}건</span></div><div className="table-wrap"><table className="table"><colgroup><col style={{ width: "8%" }} /><col style={{ width: "8%" }} /><col style={{ width: "8%" }} /><col style={{ width: "10%" }} /><col style={{ width: "10%" }} /><col style={{ width: "8%" }} /><col style={{ width: "10%" }} /><col style={{ width: "7%" }} /><col style={{ width: "13%" }} /></colgroup><thead><tr><th>열차번호</th><th>도착시간</th><th>승하차</th><th>좌석</th><th>분류</th><th>도착역</th><th>담당자</th><th>연락 상태</th><th>비고</th></tr></thead><tbody>{items.length === 0 && <tr><td className="empty-row" colSpan="9">등록된 승하차보조 건이 없습니다.</td></tr>}{items.map((item) => <tr key={item.id} className={`${item.isPast ? "past" : ""} ${selectedId === item.id ? "selected" : ""}`} onClick={() => !readonly && onSelect?.(item)} onContextMenu={(e) => onContext?.(e, item)}><td className="train-no">#{item.trainNo}</td><td>{item.arrivalTime}</td><td className={item.boarding === "승차" ? "boarding up" : "boarding down"}>{item.boarding === "승차" ? "↑ 승차" : "↓ 하차"}</td><td>{getSeatDisplay(item.carNo, item.seatNo)}</td><td>{item.type}</td><td>{item.destination || "-"}</td><td><span className="small-text">{item.manager || "-"}</span></td><td onClick={(e) => e.stopPropagation()}>{item.boarding === "승차" ? <label className="contact"><input type="checkbox" checked={item.contactDone} readOnly={readonly} aria-readonly={readonly} tabIndex={readonly ? -1 : 0} onClick={(e) => readonly && e.preventDefault()} onChange={() => !readonly && onToggleContact?.(item.id)} /></label> : <span className="contact empty">-</span>}</td><td><span className="small-text memo-text">{item.memo || "-"}</span></td></tr>)}</tbody></table></div></section>; }
