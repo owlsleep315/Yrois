@@ -85,6 +85,7 @@ function createWindows() {
     y: primaryDisplay.bounds.y,
     width: 1200,
     height: 800,
+    icon: path.join(__dirname, "../public/yrois_logo.ico"),
     title: '승하차 보조 등록 화면',
     webPreferences: { preload: path.join(__dirname, 'preload.cjs'), contextIsolation: true, nodeIntegration: false },
   });
@@ -94,6 +95,7 @@ function createWindows() {
     y: secondaryDisplay.bounds.y,
     width: secondaryDisplay.bounds.width,
     height: secondaryDisplay.bounds.height,
+    icon: path.join(__dirname, "../public/yrois_logo.ico"),
     title: '승하차 보조 표시 화면',
     fullscreen: true,
     autoHideMenuBar: true,
