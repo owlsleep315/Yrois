@@ -23,11 +23,11 @@ dist-ssr
 *.sln
 *.sw?
 
-# 데이터 파일 (실행 중 생성됨)
-data/boarding-records.json
+# data 폴더 전체 무시
+data/*
 
-# 날짜별 CSV 인수인계 파일
-data/handover/*.csv
+# 열차 도착시간 파일은 추적
+!data/train-times.json
 
 # release 폴더 전체 무시
 release/*
