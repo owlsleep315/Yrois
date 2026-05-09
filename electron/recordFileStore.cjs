@@ -60,6 +60,17 @@ function makeCsv(records, dateKey) {
   return [headers, ...rows].map((row) => row.map(escapeCsv).join(',')).join('\n');
 }
 
+const CSV_TYPE_FILTERS = {
+  boarding: new Set(['리프트', '휠필', '시각(남)', '시각(여)', '휠프트']),
+  lost: new Set(['유실물', '역물품']),
+};
+
+function getRecordsByCsvType(records, dateKey, csvType) {
+  const allowedTypes = CSV_TYPE_FILTERS[csvType];
+  if (!allowedTypes) return [];
+  return records.filter((record) => record.dateKey === dateKey && allowedTypes.has(record.type));
+}
+
 function resolveDefaultTrainTimes() {
   const packagedTrainTimesPath = path.join(__dirname, '../data/train-times.json');
   if (fs.existsSync(packagedTrainTimesPath)) {
@@ -88,9 +99,17 @@ function createRecordStore(userDataPath) {
 
   function regenerateCsv(records, dateKey) {
     ensureDir(EXPORTS_DIR);
-    const csvPath = path.join(EXPORTS_DIR, `${dateKey}.csv`);
-    const csv = makeCsv(records, dateKey);
-    fs.writeFileSync(csvPath, `\uFEFF${csv}`, 'utf8');
+    const csvTargets = [
+      { type: 'boarding', suffix: 'boarding' },
+      { type: 'lost', suffix: 'lost' },
+    ];
+    for (const target of csvTargets) {
+      const csvPath = path.join(EXPORTS_DIR, `${dateKey}-${target.suffix}.csv`);
+      // CSV 타입별 필터를 분리해 추후 분류 정책 변경 시 영향 범위를 최소화합니다.
+      const filteredRecords = getRecordsByCsvType(records, dateKey, target.type);
+      const csv = makeCsv(filteredRecords, dateKey);
+      fs.writeFileSync(csvPath, `\uFEFF${csv}`, 'utf8');
+    }
   }
 
   return {
