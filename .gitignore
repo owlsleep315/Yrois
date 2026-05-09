@@ -31,6 +31,3 @@ data/*
 
 # release 폴더 전체 무시
 release/*
-
-# exe 파일은 추적
-!release/*.exe
