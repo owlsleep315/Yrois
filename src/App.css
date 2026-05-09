@@ -192,13 +192,13 @@
 
 .memo-text {
   display: -webkit-box;
-  -webkit-line-clamp: 2;
+  -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
   white-space: normal;
   overflow: hidden;
   text-overflow: ellipsis;
   line-height: 1.2;
-  max-height: calc(1.2em * 2);
+  max-height: calc(1.2em * 3);
   word-break: break-word;
 }
 
@@ -215,7 +215,7 @@
 }
 
 .contact.empty {
-  color: #98a2b3;
+  color: var(--ink);
 }
 
 .empty-row {
@@ -231,11 +231,11 @@
     minmax(70px, 0.3fr)   /* 도착시간 */
     minmax(70px, 0.3fr)   /* 승하차 */
     minmax(60px, 0.2fr)   /* 호차 */
-    minmax(60px, 0.2fr)   /* 좌석 */
+    minmax(56px, 0.18fr)   /* 좌석 */
     minmax(100px, 0.5fr)     /* 분류 */
     minmax(90px, 0.4fr)   /* 도착역 */
     minmax(90px, 0.4fr)   /* 담당자 */
-    minmax(140px, 1fr)  /* 비고 */
+    minmax(220px, 1.4fr)  /* 비고 */
     max-content;          /* 버튼 그룹 */
   gap: 10px;
   padding: 14px 18px;
@@ -294,9 +294,21 @@
 }
 
 .field textarea {
-  min-height: 56px;
+  min-height: 80px;
   padding: 8px 10px;
   resize: none;
+}
+
+.arrival-pill {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 999px;
+}
+
+.arrival-pill.urgent {
+  background: #c0392b;
+  color: #fff;
+  box-shadow: 0 0 0 2px rgba(192, 57, 43, 0.15);
 }
 
 .field input:read-only,
