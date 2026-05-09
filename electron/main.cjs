@@ -11,12 +11,29 @@ const RENDERER_INDEX_PATH = path.join(__dirname, '../dist/index.html');
 let adminWindow;
 let displayWindow;
 let recordStore;
+let isQuitting = false;
+
+const singleInstanceLock = app.requestSingleInstanceLock();
+if (!singleInstanceLock) {
+  app.quit();
+}
 
 function formatDateKey(date) {
   const y = date.getFullYear();
   const m = String(date.getMonth() + 1).padStart(2, '0');
   const d = String(date.getDate()).padStart(2, '0');
   return `${y}-${m}-${d}`;
+}
+
+function getAppBasePath() {
+  if (isDev) return path.join(__dirname, '..');
+  return path.dirname(app.getPath('exe'));
+}
+
+function safeQuit() {
+  if (isQuitting) return;
+  isQuitting = true;
+  app.quit();
 }
 
 const state = {
@@ -86,6 +103,15 @@ function loadRoute(window, route) {
   window.loadFile(RENDERER_INDEX_PATH, { hash: route });
 }
 
+function bindWindowCloseToQuit(win) {
+  win.on('close', () => {
+    safeQuit();
+  });
+  win.on('closed', () => {
+    safeQuit();
+  });
+}
+
 function createWindows() {
   const displays = screen.getAllDisplays();
   const primaryDisplay = screen.getPrimaryDisplay();
@@ -115,6 +141,9 @@ function createWindows() {
     webPreferences: { preload: PRELOAD_PATH, contextIsolation: true, nodeIntegration: false },
   });
 
+  bindWindowCloseToQuit(adminWindow);
+  bindWindowCloseToQuit(displayWindow);
+
   loadRoute(adminWindow, '/admin');
   loadRoute(displayWindow, '/display');
 
@@ -123,13 +152,27 @@ function createWindows() {
   }
 }
 
+app.on('second-instance', () => {
+  if (adminWindow && !adminWindow.isDestroyed()) {
+    if (adminWindow.isMinimized()) adminWindow.restore();
+    adminWindow.show();
+    adminWindow.focus();
+  }
+
+  if (displayWindow && !displayWindow.isDestroyed()) {
+    if (displayWindow.isMinimized()) displayWindow.restore();
+    displayWindow.show();
+    displayWindow.focus();
+  }
+});
+
 app.whenReady().then(() => {
-  recordStore = createRecordStore(app.getPath('userData'));
+  recordStore = createRecordStore(getAppBasePath());
   const loaded = recordStore.initStore();
   state.trainTimes = loaded.trainTimes;
   state.allRecords = loaded.allRecords;
   setupIpcHandlers();
   createWindows();
 });
-app.on('window-all-closed', () => { if (process.platform !== 'darwin') app.quit(); });
-app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createWindows(); });
+app.on('window-all-closed', () => { if (process.platform !== 'darwin') safeQuit(); });
+app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0 && !isQuitting) createWindows(); });

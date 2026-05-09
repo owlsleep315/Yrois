@@ -1,7 +1,6 @@
 const fs = require('fs');
 const path = require('path');
-
-const TRAIN_TIMES_SAMPLE = { '102': '09:15', '214': '10:42', '1004': '11:10' };
+const XLSX = require('xlsx');
 
 function ensureDir(dirPath) {
   if (!fs.existsSync(dirPath)) fs.mkdirSync(dirPath, { recursive: true });
@@ -32,6 +31,60 @@ function safeReadJson(filePath, fallback) {
     }
     writeJson(filePath, fallback);
     return fallback;
+  }
+}
+
+function excelTimeToHHmm(value) {
+  if (value == null || value === '') return null;
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    const dayPortion = ((value % 1) + 1) % 1;
+    const totalMinutes = Math.round(dayPortion * 24 * 60) % (24 * 60);
+    const hours = String(Math.floor(totalMinutes / 60)).padStart(2, '0');
+    const minutes = String(totalMinutes % 60).padStart(2, '0');
+    return `${hours}:${minutes}`;
+  }
+
+  const asString = String(value).trim();
+  if (!asString) return null;
+  const normalized = asString.replace('.', ':');
+  const match = normalized.match(/^(\d{1,2})(?::(\d{1,2}))?$/);
+  if (!match) return null;
+
+  const hours = Number(match[1]);
+  const minutes = Number(match[2] ?? '0');
+  if (!Number.isFinite(hours) || !Number.isFinite(minutes) || hours < 0 || hours > 23 || minutes < 0 || minutes > 59) {
+    return null;
+  }
+  return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+}
+
+function loadTrainTimesFromExcel(filePath) {
+  if (!fs.existsSync(filePath)) return {};
+
+  try {
+    const workbook = XLSX.readFile(filePath, { cellDates: true });
+    const firstSheetName = workbook.SheetNames?.[0];
+    if (!firstSheetName) return {};
+
+    const sheet = workbook.Sheets[firstSheetName];
+    const rows = XLSX.utils.sheet_to_json(sheet, { defval: '' });
+    const result = {};
+
+    for (const row of rows) {
+      const trainNoRaw = row['열차번호'];
+      const arrivalRaw = row['도착시간'];
+      if (trainNoRaw == null || trainNoRaw === '' || arrivalRaw == null || arrivalRaw === '') continue;
+
+      const trainNo = String(trainNoRaw).trim();
+      const arrivalTime = excelTimeToHHmm(arrivalRaw);
+      if (!trainNo || !arrivalTime) continue;
+      result[trainNo] = arrivalTime;
+    }
+
+    return result;
+  } catch (error) {
+    console.error(`Failed to read train-times.xlsx at ${filePath}:`, error);
+    return {};
   }
 }
 
@@ -71,24 +124,16 @@ function getRecordsByCsvType(records, dateKey, csvType) {
   return records.filter((record) => record.dateKey === dateKey && allowedTypes.has(record.type));
 }
 
-function resolveDefaultTrainTimes() {
-  const packagedTrainTimesPath = path.join(__dirname, '../data/train-times.json');
-  if (fs.existsSync(packagedTrainTimesPath)) {
-    return safeReadJson(packagedTrainTimesPath, TRAIN_TIMES_SAMPLE);
-  }
-  return TRAIN_TIMES_SAMPLE;
-}
-
-function createRecordStore(userDataPath) {
-  const DATA_DIR = path.join(userDataPath, 'data');
-  const EXPORTS_DIR = path.join(userDataPath, 'exports');
-  const TRAIN_TIMES_PATH = path.join(DATA_DIR, 'train-times.json');
+function createRecordStore(basePath) {
+  const DATA_DIR = path.join(basePath, 'data');
+  const EXPORTS_DIR = path.join(basePath, 'exports');
+  const TRAIN_TIMES_PATH = path.join(DATA_DIR, 'train-times.xlsx');
   const RECORDS_PATH = path.join(DATA_DIR, 'boarding-records.json');
 
   function initStore() {
     ensureDir(DATA_DIR);
     ensureDir(EXPORTS_DIR);
-    const trainTimes = safeReadJson(TRAIN_TIMES_PATH, resolveDefaultTrainTimes());
+    const trainTimes = loadTrainTimesFromExcel(TRAIN_TIMES_PATH);
     const allRecords = safeReadJson(RECORDS_PATH, []);
     return { trainTimes, allRecords };
   }
@@ -105,7 +150,6 @@ function createRecordStore(userDataPath) {
     ];
     for (const target of csvTargets) {
       const csvPath = path.join(EXPORTS_DIR, `${dateKey}-${target.suffix}.csv`);
-      // CSV 타입별 필터를 분리해 추후 분류 정책 변경 시 영향 범위를 최소화합니다.
       const filteredRecords = getRecordsByCsvType(records, dateKey, target.type);
       const csv = makeCsv(filteredRecords, dateKey);
       fs.writeFileSync(csvPath, `\uFEFF${csv}`, 'utf8');
