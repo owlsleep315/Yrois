@@ -379,6 +379,8 @@
 }
 
 .rainbow-text {
+  color: #ff00c8;
+  
   background: linear-gradient(
     90deg,
     #ff005d 0%,
@@ -410,22 +412,6 @@
 
   100% {
     background-position: 220% 50%;
-  }
-}
-
-@keyframes rainbow-glow {
-  from {
-    filter:
-      drop-shadow(0 0 2px #fff)
-      drop-shadow(0 0 8px #ff00ff)
-      drop-shadow(0 0 16px #00f6ff);
-  }
-
-  to {
-    filter:
-      drop-shadow(0 0 8px #fff)
-      drop-shadow(0 0 16px #ff5cf4)
-      drop-shadow(0 0 28px #00ffff);
   }
 }
 
