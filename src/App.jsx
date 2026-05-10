@@ -101,6 +101,7 @@ export default function App() {
 }
 
 function AdminPage({ recordsState, dateKey, changeDateKey, trainTimes }) {
+  useEffect(() => { document.title = "Yrois Main"; }, []);
   const [form, setForm] = useState(emptyForm);
   const [selectedId, setSelectedId] = useState(null);
   const [contextMenu, setContextMenu] = useState(null);
@@ -143,6 +144,9 @@ function AdminPage({ recordsState, dateKey, changeDateKey, trainTimes }) {
       contactDone: form.id
         ? latestRecord?.contactDone || false
         : false,
+      completed: form.id
+        ? latestRecord?.completed || false
+        : false,
       destination: form.boarding === "하차" ? "익산" : form.destination 
     }; 
     if (form.id) { updateRecord(form.id, payload); } else { addRecord(payload); } setSelectedId(null); setForm(emptyForm); };
@@ -156,6 +160,7 @@ function AdminPage({ recordsState, dateKey, changeDateKey, trainTimes }) {
 }
 
 function DisplayPage({ recordsState }) {
+  useEffect(() => { document.title = "Yrois Display"; }, []);
   const now = useNowTick();
   const visibleItems = useVisibleItems(recordsState, now);
   const upItems = visibleItems.filter((item) => item.direction === "up");
@@ -175,16 +180,13 @@ function useNowTick(intervalMs = 30000) {
 function getItemTimeState(item, selectedDateKey, now) {
   const targetDateKey = item.dateKey || selectedDateKey;
   const trainDateTime = parseRecordDateTime(targetDateKey, item.arrivalTime);
-  if (!trainDateTime) return { hidden: false, isPast: false };
+  if (!trainDateTime) return { hidden: false };
 
   const todayKey = formatDateKey(now);
-  if (targetDateKey < todayKey) return { hidden: true, isPast: false };
-  if (targetDateKey > todayKey) return { hidden: false, isPast: false };
+  if (targetDateKey !== todayKey) return { hidden: false };
 
   const diffMinutes = (trainDateTime.getTime() - now.getTime()) / 60000;
-  if (diffMinutes < -30) return { hidden: true, isPast: false };
-  if (diffMinutes < -10) return { hidden: false, isPast: true };
-  return { hidden: false, isPast: false, remainingMinutes: diffMinutes };
+  return { hidden: false, remainingMinutes: diffMinutes };
 }
 
 function useVisibleItems(recordsState, now) {
@@ -197,6 +199,7 @@ function useVisibleItems(recordsState, now) {
 
     return sourceRecords
       .filter((item) => (item.dateKey || dateKey) === dateKey)
+      .filter((item) => !item.completed)
       .map((item) => ({
         ...item,
         ...getItemTimeState(item, item.dateKey || dateKey, now),
@@ -213,6 +216,18 @@ function BoardLayout({ adminMode = false, dateKey, changeDateKey, selectedId, se
 
   const contextMenuRef = useRef(null);
 
+
+  useEffect(() => {
+    if (!adminMode || !selectedId) return undefined;
+    const onPointerDown = (event) => {
+      if (event.target.closest(".table tbody tr") || event.target.closest(".formbar") || event.target.closest(".context-delete")) return;
+      setSelectedId(null);
+      setForm(emptyForm);
+    };
+    document.addEventListener("pointerdown", onPointerDown);
+    return () => document.removeEventListener("pointerdown", onPointerDown);
+  }, [adminMode, selectedId, setSelectedId, setForm]);
+
   useEffect(() => {
     if (!adminMode || !contextMenu) return undefined;
     const onPointerDown = (event) => {
@@ -223,7 +238,7 @@ function BoardLayout({ adminMode = false, dateKey, changeDateKey, selectedId, se
     return () => document.removeEventListener("pointerdown", onPointerDown);
   }, [adminMode, contextMenu, setContextMenu]);
 
-  return <div className={pageClassName}><div className={mockClassName}>{adminMode && <header className="toolbar"><div className="date-nav"><button className="btn light" onClick={() => changeDateKey(addDate(dateKey, -1))}>&lt;</button><div className="date-pill">{formatDateLabel(dateKey)}</div><button className="btn light" onClick={() => changeDateKey(addDate(dateKey, 1))}>&gt;</button></div></header>}<main className={layoutClassName}><div className={adminMode ? "" : "display-board-pane"}><Board title="상선" items={upItems} selectedId={selectedId} onSelect={selectItem} onContext={(e, item) => { if (!adminMode) return; e.preventDefault(); setContextMenu({ x: e.clientX, y: e.clientY, id: item.id }); }} onToggleContact={toggleContact} readonly={!adminMode} /></div><div className={adminMode ? "" : "display-board-pane"}><Board title="하선" items={downItems} selectedId={selectedId} onSelect={selectItem} onContext={(e, item) => { if (!adminMode) return; e.preventDefault(); setContextMenu({ x: e.clientX, y: e.clientY, id: item.id }); }} onToggleContact={toggleContact} readonly={!adminMode} /></div></main>{adminMode && <form className="formbar" onSubmit={submit}><Field label="열차번호"><input value={form.trainNo} onChange={(e) => updateForm("trainNo", e.target.value)} /></Field><Field label="도착시간"><input value={form.arrivalTime} readOnly placeholder="자동입력" /></Field><Field label="승하차"><select value={form.boarding} onChange={(e) => updateForm("boarding", e.target.value)}>{BOARDING_TYPES.map((v) => <option key={v}>{v}</option>)}</select></Field><Field label="호차"><input type="number" min="1" max="18" value={form.carNo} onChange={(e) => updateForm("carNo", e.target.value)} /></Field><Field label="좌석"><input value={form.seatNo} onChange={(e) => updateForm("seatNo", normalizeSeatInput(e.target.value))} disabled={form.boarding === "하차" || form.type === "유실물" || form.type === "역물품"} /></Field><Field label="분류"><select value={form.type} onChange={(e) => updateForm("type", e.target.value)}>{TYPES.map((v) => <option key={v}>{v}</option>)}</select></Field><Field label="도착역"><input value={form.destination} onChange={(e) => updateForm("destination", e.target.value)} maxLength={MAX_DESTINATION_LENGTH} readOnly={form.boarding === "하차"} /></Field><Field label="담당자"><input value={form.manager} onChange={(e) => updateForm("manager", e.target.value)} maxLength={MAX_MANAGER_LENGTH} /></Field><Field label="비고" className="field-wide"><input value={form.memo} onChange={(e) => updateForm("memo", e.target.value)} maxLength={MAX_MEMO_LENGTH} /></Field><div className="form-actions"><button className="btn" type="submit">{form.id ? "수정" : "등록"}</button><button className="btn sub" type="button" onClick={() => { setForm(emptyForm); setSelectedId(null); }}>초기화</button></div></form>}</div>{adminMode && contextMenu && <button ref={contextMenuRef} className="context-delete" style={{ left: contextMenu.x, top: contextMenu.y }} onClick={() => deleteItem(contextMenu.id)}>삭제</button>}</div>;
+  return <div className={pageClassName}><div className={mockClassName}>{adminMode && <header className="toolbar"><div className="date-nav"><button className="btn light" onClick={() => changeDateKey(addDate(dateKey, -1))}>&lt;</button><div className="date-pill">{formatDateLabel(dateKey)}</div><button className="btn light" onClick={() => changeDateKey(addDate(dateKey, 1))}>&gt;</button></div></header>}<main className={layoutClassName}><div className={adminMode ? "" : "display-board-pane"}><Board title="상선" items={upItems} selectedId={selectedId} onSelect={selectItem} onContext={(e, item) => { if (!adminMode) return; e.preventDefault(); setContextMenu({ x: e.clientX, y: e.clientY, id: item.id }); }} onToggleContact={toggleContact} readonly={!adminMode} /></div><div className={adminMode ? "" : "display-board-pane"}><Board title="하선" items={downItems} selectedId={selectedId} onSelect={selectItem} onContext={(e, item) => { if (!adminMode) return; e.preventDefault(); setContextMenu({ x: e.clientX, y: e.clientY, id: item.id }); }} onToggleContact={toggleContact} readonly={!adminMode} /></div></main>{adminMode && <form className="formbar" onSubmit={submit}><Field label="열차번호"><input value={form.trainNo} onChange={(e) => updateForm("trainNo", e.target.value)} /></Field><Field label="도착시간"><input value={form.arrivalTime} readOnly placeholder="자동입력" /></Field><Field label="승하차"><select value={form.boarding} onChange={(e) => updateForm("boarding", e.target.value)}>{BOARDING_TYPES.map((v) => <option key={v}>{v}</option>)}</select></Field><Field label="호차"><input type="number" min="1" max="18" value={form.carNo} onChange={(e) => updateForm("carNo", e.target.value)} /></Field><Field label="좌석"><input value={form.seatNo} onChange={(e) => updateForm("seatNo", normalizeSeatInput(e.target.value))} disabled={form.boarding === "하차" || form.type === "유실물" || form.type === "역물품"} /></Field><Field label="분류"><select value={form.type} onChange={(e) => updateForm("type", e.target.value)}>{TYPES.map((v) => <option key={v}>{v}</option>)}</select></Field><Field label="도착역"><input value={form.destination} onChange={(e) => updateForm("destination", e.target.value)} maxLength={MAX_DESTINATION_LENGTH} readOnly={form.boarding === "하차"} /></Field><Field label="담당자"><input value={form.manager} onChange={(e) => updateForm("manager", e.target.value)} maxLength={MAX_MANAGER_LENGTH} /></Field><Field label="비고" className="field-wide"><input value={form.memo} onChange={(e) => updateForm("memo", e.target.value)} maxLength={MAX_MEMO_LENGTH} /></Field><div className="form-actions"><button className="btn" type="submit">{form.id ? "수정" : "등록"}</button>{form.id ? <button className="btn success" type="button" onClick={() => { updateRecord(form.id, { completed: true }); setForm(emptyForm); setSelectedId(null); }}>완료</button> : <button className="btn sub" type="button" onClick={() => { setForm(emptyForm); setSelectedId(null); }}>초기화</button>}</div></form>}</div>{adminMode && contextMenu && <button ref={contextMenuRef} className="context-delete" style={{ left: contextMenu.x, top: contextMenu.y }} onClick={() => deleteItem(contextMenu.id)}>삭제</button>}</div>;
 }
 
 
@@ -239,4 +254,4 @@ function displayOrDash(value) {
   if (value == null || value === "") return "-";
   return value;
 }
-function Board({ title, items, selectedId, onSelect, onContext, onToggleContact, readonly = false }) { return <section className="board"><div className="board-title"><strong>{title}</strong><span>{items.length}건</span></div><div className="table-wrap"><table className="table"><colgroup><col style={{ width: "8%" }} /><col style={{ width: "9%" }} /><col style={{ width: "8%" }} /><col style={{ width: "8%" }} /><col style={{ width: "10%" }} /><col style={{ width: "10%" }} /><col style={{ width: "9%" }} /><col style={{ width: "6%" }} /><col style={{ width: "7%" }} /><col style={{ width: "25%" }} /></colgroup><thead><tr><th>열차번호</th><th>도착시간</th><th>승하차</th><th>좌석</th><th>분류</th><th>도착역</th><th>담당자</th><th>연락 상태</th><th>열차조정</th><th>비고</th></tr></thead><tbody>{items.length === 0 && <tr><td className="empty-row" colSpan="10">등록된 승하차보조 건이 없습니다.</td></tr>}{items.map((item) => <tr key={item.id} className={`${item.isPast ? "past" : ""} ${item.remainingMinutes <= 10 && item.remainingMinutes >= 0 ? "imminent" : ""} ${selectedId === item.id ? "selected" : ""}`} onClick={() => !readonly && onSelect?.(item)} onContextMenu={(e) => onContext?.(e, item)}><td className="train-no">#{item.trainNo}</td><td><span className="arrival-pill">{item.arrivalTime}</span></td><td className={item.boarding === "승차" ? "boarding up" : "boarding down"}>{item.boarding === "승차" ? "↑ 승차" : "↓ 하차"}</td><td>{getSeatDisplay(item.carNo, item.seatNo)}</td><td>{item.type}</td><td>{item.destination || "-"}</td><td>{item.manager || "-"}</td><td onClick={(e) => e.stopPropagation()}>{item.boarding === "승차" ? <label className="contact"><input type="checkbox" checked={item.contactDone} readOnly={readonly} aria-readonly={readonly} tabIndex={readonly ? -1 : 0} onClick={(e) => readonly && e.preventDefault()} onChange={() => !readonly && onToggleContact?.(item.id)} /></label> : <span className="contact empty">-</span>}</td><td>{displayOrDash(getTrainAdjustment(item.trainNo, item))}</td><td><span className="memo-text">{item.memo || "-"}</span></td></tr>)}</tbody></table></div></section>; }
+function Board({ title, items, selectedId, onSelect, onContext, onToggleContact, readonly = false }) { return <section className="board"><div className="board-title"><strong>{title}</strong><span>{items.length}건</span></div><div className="table-wrap"><table className="table"><colgroup><col style={{ width: "8%" }} /><col style={{ width: "9%" }} /><col style={{ width: "8%" }} /><col style={{ width: "8%" }} /><col style={{ width: "10%" }} /><col style={{ width: "10%" }} /><col style={{ width: "9%" }} /><col style={{ width: "6%" }} /><col style={{ width: "7%" }} /><col style={{ width: "25%" }} /></colgroup><thead><tr><th>열차번호</th><th>도착시간</th><th>승하차</th><th>좌석</th><th>분류</th><th>도착역</th><th>담당자</th><th>연락 상태</th><th>열차조정</th><th>비고</th></tr></thead><tbody>{items.length === 0 && <tr><td className="empty-row" colSpan="10">등록된 승하차보조 건이 없습니다.</td></tr>}{items.map((item) => <tr key={item.id} className={`${item.remainingMinutes <= 10 && item.remainingMinutes >= 0 ? "imminent" : ""} ${selectedId === item.id ? "selected" : ""}`} onClick={() => !readonly && onSelect?.(item)} onContextMenu={(e) => onContext?.(e, item)}><td className="train-no">#{item.trainNo}</td><td><span className="arrival-pill">{item.arrivalTime}</span></td><td className={item.boarding === "승차" ? "boarding up" : "boarding down"}>{item.boarding === "승차" ? "↑ 승차" : "↓ 하차"}</td><td>{getSeatDisplay(item.carNo, item.seatNo)}</td><td>{item.type}</td><td>{item.destination || "-"}</td><td>{item.manager || "-"}</td><td onClick={(e) => e.stopPropagation()}>{item.boarding === "승차" ? <label className="contact"><input type="checkbox" checked={item.contactDone} readOnly={readonly} aria-readonly={readonly} tabIndex={readonly ? -1 : 0} onClick={(e) => readonly && e.preventDefault()} onChange={() => !readonly && onToggleContact?.(item.id)} /></label> : <span className="contact empty">-</span>}</td><td>{displayOrDash(getTrainAdjustment(item.trainNo, item))}</td><td><span className="memo-text">{item.memo || "-"}</span></td></tr>)}</tbody></table></div></section>; }

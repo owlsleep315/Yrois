@@ -11,6 +11,14 @@ function formatDateKey(date) {
 function emit(state) { for (const listener of listeners) listener(state); }
 function isElectron() { return typeof window !== 'undefined' && !!window.electronAPI; }
 
+
+function normalizeRecord(record) {
+  return {
+    ...record,
+    completed: record?.completed === true,
+  };
+}
+
 function deriveRecords() {
   memoryState.records = memoryState.allRecords.filter((item) => item.dateKey === memoryState.dateKey);
 }
@@ -31,7 +39,7 @@ export async function setDateKey(dateKey) {
 
 export async function addRecord(record) {
   if (isElectron()) return window.electronAPI.addRecord(record);
-  memoryState.allRecords = [...memoryState.allRecords, record];
+  memoryState.allRecords = [...memoryState.allRecords, normalizeRecord(record)];
   deriveRecords();
   emit(memoryState);
   return memoryState;
@@ -39,7 +47,7 @@ export async function addRecord(record) {
 
 export async function updateRecord(id, updates) {
   if (isElectron()) return window.electronAPI.updateRecord(id, updates);
-  memoryState.allRecords = memoryState.allRecords.map((item) => (item.id === id ? { ...item, ...updates } : item));
+  memoryState.allRecords = memoryState.allRecords.map((item) => (item.id === id ? normalizeRecord({ ...item, ...updates }) : item));
   deriveRecords();
   emit(memoryState);
   return memoryState;
