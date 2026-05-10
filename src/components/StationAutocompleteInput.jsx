@@ -20,7 +20,7 @@ const StationAutocompleteInput = forwardRef(function StationAutocompleteInput(
     if (!value || isComposing || props.readOnly || props.disabled) return "";
     const matches = stations.filter((station) => station.startsWith(value));
     return matches.length === 1 ? matches[0] : "";
-  }, [isComposing, stations, value]);
+  }, [isComposing, props.disabled, props.readOnly, stations, value]);
 
   const ghostSuffix = suggestion && suggestion.length > value.length ? suggestion.slice(value.length) : "";
 
@@ -57,7 +57,12 @@ const StationAutocompleteInput = forwardRef(function StationAutocompleteInput(
         className={className}
         {...props}
       />
-      {ghostSuffix && <span className="station-autocomplete-ghost">{value}{ghostSuffix}</span>}
+      {ghostSuffix && (
+        <span className="station-autocomplete-ghost">
+          <span className="station-autocomplete-hidden">{value}</span>
+          <span>{ghostSuffix}</span>
+        </span>
+      )}
     </div>
   );
 });
