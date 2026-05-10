@@ -366,8 +366,8 @@
   height: 38px;
   padding: 0 10px;
   color: #98a2b3;
-  font-size: 14px;
-  font-weight: 700;
+  font-size: 24px;
+  font-weight: 300;
   line-height: 38px;
   pointer-events: none;
   white-space: nowrap;
@@ -377,7 +377,7 @@
 }
 
 .station-autocomplete-suffix {
-  margin-left: 3px;
+  margin-left: 7px;
 }
 
 .memo-field {
