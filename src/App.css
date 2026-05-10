@@ -393,17 +393,19 @@
   background-size: 220% 100%;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
+  transform-origin: center;
 
   animation:
     rainbow-flow 2.2s linear infinite,
     rainbow-glow 1.4s ease-in-out infinite alternate;
 
   font-weight: 900;
+  letter-spacing: 0.02em;
 }
 
 @keyframes rainbow-flow {
   0% {
-    background-position: 0% 50%;
+    background-position: 0% 0%, 100% 100%, 0% 50%;
   }
 
   100% {
