@@ -336,48 +336,8 @@
 }
 
 .station-autocomplete-input {
-  position: relative;
   width: 100%;
   min-width: 0;
-}
-
-.station-autocomplete-input input {
-  position: relative;
-  z-index: 1;
-  background: #fff;
-  width: 100%;
-  box-sizing: border-box;
-}
-
-.station-autocomplete-input input:read-only,
-.station-autocomplete-input input:disabled {
-  background: #eef2f7;
-}
-
-.station-autocomplete-hidden {
-  visibility: hidden;
-}
-
-.station-autocomplete-ghost {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  height: 38px;
-  padding: 0 10px;
-  color: #98a2b3;
-  font-size: 24px;
-  font-weight: 300;
-  line-height: 38px;
-  pointer-events: none;
-  white-space: nowrap;
-  overflow: hidden;
-  box-sizing: border-box;
-  z-index: 2;
-}
-
-.station-autocomplete-suffix {
-  margin-left: 7px;
 }
 
 .memo-field {

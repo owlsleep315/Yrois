@@ -23,7 +23,6 @@ const StationAutocompleteInput = forwardRef(function StationAutocompleteInput(
     return matches.length === 1 ? matches[0] : "";
   }, [compositionTick, isComposing, props.disabled, props.readOnly, stations, value]);
 
-  const ghostSuffix = suggestion && suggestion.length > value.length ? suggestion.slice(value.length) : "";
 
   const commitSuggestion = () => {
     if (!isComposing && suggestion && suggestion !== value) {
@@ -61,12 +60,6 @@ const StationAutocompleteInput = forwardRef(function StationAutocompleteInput(
         className={className}
         {...props}
       />
-      {ghostSuffix && (
-        <span className="station-autocomplete-ghost">
-          <span className="station-autocomplete-hidden">{value}</span>
-          <span className="station-autocomplete-suffix">{ghostSuffix}</span>
-        </span>
-      )}
     </div>
   );
 });
