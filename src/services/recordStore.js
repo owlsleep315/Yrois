@@ -1,4 +1,4 @@
-const memoryState = { dateKey: formatDateKey(new Date()), records: [], allRecords: [], trainTimes: {} };
+const memoryState = { dateKey: formatDateKey(new Date()), records: [], allRecords: [], trainTimes: {}, stations: [] };
 const listeners = new Set();
 
 function formatDateKey(date) {
@@ -65,4 +65,10 @@ export function subscribeRecords(callback) {
   if (isElectron()) return window.electronAPI.subscribeRecords(callback);
   listeners.add(callback);
   return () => listeners.delete(callback);
+}
+
+
+export async function getStations() {
+  if (isElectron()) return window.electronAPI.getStations();
+  return memoryState.stations;
 }

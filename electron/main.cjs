@@ -1,4 +1,5 @@
 const { app, BrowserWindow, screen, ipcMain } = require('electron');
+const fs = require('fs');
 const path = require('path');
 const { createRecordStore } = require('./recordFileStore.cjs');
 
@@ -30,6 +31,25 @@ function getAppBasePath() {
   return path.dirname(app.getPath('exe'));
 }
 
+
+function safeReadJsonFile(filePath, fallback) {
+  try {
+    if (!fs.existsSync(filePath)) return fallback;
+    const raw = fs.readFileSync(filePath, 'utf8').trim();
+    if (!raw) return fallback;
+    return JSON.parse(raw);
+  } catch (error) {
+    console.error(`Failed to read JSON at ${filePath}:`, error);
+    return fallback;
+  }
+}
+
+function loadStations(basePath) {
+  const stationsPath = path.join(basePath, 'data', 'stations.json');
+  const parsed = safeReadJsonFile(stationsPath, []);
+  return Array.isArray(parsed) ? parsed : [];
+}
+
 function safeQuit() {
   if (isQuitting) return;
   isQuitting = true;
@@ -47,6 +67,7 @@ const state = {
   dateKey: formatDateKey(new Date()),
   trainTimes: {},
   allRecords: [],
+  stations: [],
 };
 
 function getStatePayload() {
@@ -55,6 +76,7 @@ function getStatePayload() {
     trainTimes: state.trainTimes,
     allRecords: state.allRecords,
     records: state.allRecords.filter((item) => item.dateKey === state.dateKey),
+    stations: state.stations,
   };
 }
 
@@ -100,6 +122,7 @@ function setupIpcHandlers() {
     return persistAndBroadcast([target?.dateKey]);
   });
   ipcMain.handle('trainTimes:get', () => state.trainTimes);
+  ipcMain.handle('stations:get', () => state.stations);
 }
 
 function loadRoute(window, route) {
@@ -178,6 +201,7 @@ app.whenReady().then(() => {
   const loaded = recordStore.initStore();
   state.trainTimes = loaded.trainTimes;
   state.allRecords = (loaded.allRecords || []).map(normalizeRecord);
+  state.stations = loadStations(getAppBasePath());
   setupIpcHandlers();
   createWindows();
 });

@@ -1,8 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { addRecord, deleteRecord, getRecordsState, setDateKey as updateDateKey, subscribeRecords, updateRecord } from "./services/recordStore";
+import { addRecord, deleteRecord, getRecordsState, getStations, setDateKey as updateDateKey, subscribeRecords, updateRecord } from "./services/recordStore";
 import { Navigate, Route, Routes } from "react-router-dom";
 import "./App.css";
-import stations from "./data/stations.json";
 import StationAutocompleteInput from "./components/StationAutocompleteInput";
 
 const TYPES = ["리프트", "휠프트", "휠필", "시각(남)", "시각(여)", "유실물", "역물품", "승하차도움"];
@@ -10,6 +9,8 @@ const BOARDING_TYPES = ["승차", "하차"];
 const MAX_DESTINATION_LENGTH = 6;
 const MAX_MANAGER_LENGTH = 6;
 const MAX_MEMO_LENGTH = 50;
+const DEFAULT_STATIONS = ["익산", "전주", "정읍", "광주송정", "목포", "오송", "천안아산", "대전", "동대구", "부산", "용산", "서울"];
+
 const KOREAN_TO_QWERTY = {
   ㅂ: "Q", ㅈ: "W", ㄷ: "E", ㄱ: "R", ㅅ: "T", ㅛ: "Y", ㅕ: "U", ㅑ: "I", ㅐ: "O", ㅔ: "P",
   ㅁ: "A", ㄴ: "S", ㅇ: "D", ㄹ: "F", ㅎ: "G", ㅗ: "H", ㅓ: "J", ㅏ: "K", ㅣ: "L",
@@ -45,6 +46,7 @@ export default function App() {
     allRecords: [],
     trainTimes: {},
   });
+  const [stations, setStations] = useState(DEFAULT_STATIONS);
 
   useEffect(() => {
     let mounted = true;
@@ -61,6 +63,11 @@ export default function App() {
       if (!mounted) return;
       applyState(state);
     });
+
+    getStations().then((loadedStations) => {
+      if (!mounted) return;
+      if (Array.isArray(loadedStations) && loadedStations.length > 0) setStations(loadedStations);
+    }).catch(() => {});
 
     const unsubscribe = subscribeRecords((state) => {
       applyState(state);
@@ -96,13 +103,13 @@ export default function App() {
   return (
     <Routes>
       <Route path="/" element={<Navigate to="/admin" replace />} />
-      <Route path="/admin" element={<AdminPage {...dataProps} />} />
+      <Route path="/admin" element={<AdminPage {...dataProps} stations={stations} />} />
       <Route path="/display" element={<DisplayPage {...dataProps} />} />
     </Routes>
   );
 }
 
-function AdminPage({ recordsState, dateKey, changeDateKey, trainTimes }) {
+function AdminPage({ recordsState, dateKey, changeDateKey, trainTimes, stations }) {
   useEffect(() => { document.title = "Yrois Main"; }, []);
   const [form, setForm] = useState(emptyForm);
   const [selectedId, setSelectedId] = useState(null);
@@ -158,7 +165,7 @@ function AdminPage({ recordsState, dateKey, changeDateKey, trainTimes }) {
     const target = (recordsState.allRecords || []).find((item) => item.id === id);
     if (target) updateRecord(id, { contactDone: !target.contactDone });
   };
-  return <BoardLayout adminMode {...{ dateKey, changeDateKey, selectedId, setSelectedId, setForm, contextMenu, setContextMenu, upItems, downItems, submit, form, updateForm, selectItem, toggleContact, deleteItem }} />;
+  return <BoardLayout adminMode {...{ dateKey, changeDateKey, selectedId, setSelectedId, setForm, contextMenu, setContextMenu, upItems, downItems, submit, form, updateForm, selectItem, toggleContact, deleteItem, stations }} />;
 }
 
 function DisplayPage({ recordsState }) {
@@ -211,7 +218,7 @@ function useVisibleItems(recordsState, now) {
   }, [recordsState, now]);
 }
 
-function BoardLayout({ adminMode = false, dateKey, changeDateKey, selectedId, setSelectedId, setForm, contextMenu, setContextMenu, upItems, downItems, submit, form, updateForm, selectItem, toggleContact, deleteItem }) {
+function BoardLayout({ adminMode = false, dateKey, changeDateKey, selectedId, setSelectedId, setForm, contextMenu, setContextMenu, upItems, downItems, submit, form, updateForm, selectItem, toggleContact, deleteItem, stations = [] }) {
   const pageClassName = adminMode ? "app" : "app display-page";
   const mockClassName = adminMode ? "mock" : "mock display-mock";
   const layoutClassName = adminMode ? "layout split" : "layout split display-split";
