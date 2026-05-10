@@ -379,36 +379,25 @@
 }
 
 .rainbow-text {
-  position: relative;
-  display: inline-block;
-  padding: 0 2px;
-  background:
-    radial-gradient(circle at 10% 20%, rgba(255, 255, 255, 0.95) 0 2px, transparent 3px),
-    radial-gradient(circle at 85% 70%, rgba(255, 255, 255, 0.9) 0 1.5px, transparent 2px),
-    linear-gradient(
-      110deg,
-      #ff005d 0%,
-      #ff7a00 10%,
-      #ffe600 20%,
-      #66ff00 30%,
-      #00ffd5 40%,
-      #00a2ff 50%,
-      #5a5bff 60%,
-      #b300ff 70%,
-      #ff00c8 80%,
-      #ff3b3b 90%,
-      #ff005d 100%
-    );
-  background-size: 220% 220%, 220% 220%, 350% 100%;
-  background-position: 0% 0%, 100% 100%, 0% 50%;
+  background: linear-gradient(
+    90deg,
+    #ff005d 0%,
+    #ff7a00 14%,
+    #ffe600 28%,
+    #66ff00 42%,
+    #00ffd5 56%,
+    #00a2ff 70%,
+    #b300ff 84%,
+    #ff00c8 100%
+  );
+  background-size: 220% 100%;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   transform-origin: center;
 
   animation:
-    rainbow-flow 1.6s linear infinite,
-    rainbow-glow 1.1s ease-in-out infinite alternate,
-    rainbow-pop 0.9s ease-in-out infinite;
+    rainbow-flow 2.2s linear infinite,
+    rainbow-glow 1.4s ease-in-out infinite alternate;
 
   font-weight: 900;
   letter-spacing: 0.02em;
@@ -420,7 +409,7 @@
   }
 
   100% {
-    background-position: 100% 100%, 0% 0%, 350% 50%;
+    background-position: 220% 50%;
   }
 }
 
@@ -437,21 +426,6 @@
       drop-shadow(0 0 8px #fff)
       drop-shadow(0 0 16px #ff5cf4)
       drop-shadow(0 0 28px #00ffff);
-  }
-}
-
-@keyframes rainbow-pop {
-  0%,
-  100% {
-    transform: scale(1) rotate(0deg);
-  }
-
-  35% {
-    transform: scale(1.08) rotate(-1.4deg);
-  }
-
-  70% {
-    transform: scale(1.04) rotate(1.2deg);
   }
 }
 
