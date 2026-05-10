@@ -378,6 +378,54 @@
   filter: none;
 }
 
+.rainbow-text {
+  background: linear-gradient(
+    90deg,
+    #ff0000,
+    #ff9900,
+    #ffee00,
+    #33ff00,
+    #00ffee,
+    #0066ff,
+    #aa00ff,
+    #ff0066
+  );
+
+  background-size: 400% 100%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+
+  animation:
+    rainbow-flow 4s linear infinite,
+    rainbow-glow 1.5s ease-in-out infinite alternate;
+
+  font-weight: 900;
+}
+
+@keyframes rainbow-flow {
+  0% {
+    background-position: 0% 50%;
+  }
+
+  100% {
+    background-position: 400% 50%;
+  }
+}
+
+@keyframes rainbow-glow {
+  from {
+    filter:
+      drop-shadow(0 0 2px #fff)
+      drop-shadow(0 0 6px #ff00ff);
+  }
+
+  to {
+    filter:
+      drop-shadow(0 0 6px #fff)
+      drop-shadow(0 0 20px #00ffff);
+  }
+}
+
 @media (max-width: 1180px) {
   .formbar {
     grid-template-columns: repeat(4, 1fr);
