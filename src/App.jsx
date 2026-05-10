@@ -126,7 +126,26 @@ function AdminPage({ recordsState, dateKey, changeDateKey, trainTimes }) {
 
   const updateForm = (name, value) => { setForm((prev) => { const next = { ...prev, [name]: value }; if (name === "trainNo") { const clean = value.replace(/\D/g, ""); next.trainNo = clean; next.arrivalTime = trainTimes[clean] || ""; } if (name === "boarding" && value === "하차") { next.destination = "익산"; next.seatNo = ""; } if (name === "boarding" && value === "승차" && prev.destination === "익산") next.destination = ""; if (name === "type" && (value === "유실물" || value === "역물품")) next.seatNo = ""; if (name === "carNo") { const n = Number(value); next.carNo = value === "" ? "" : Math.min(18, Math.max(1, n)); } return next; }); };
   const validateLength = (value, max, label) => { if ((value || "").length > max) { alert(`${label}은(는) 최대 ${max}자까지 입력할 수 있습니다.`); return false; } return true; };
-  const submit = (e) => { e.preventDefault(); if (!trainTimes[form.trainNo]) { alert("기존 파일에 등록된 열차번호만 입력할 수 있습니다."); return; } if (!validateLength(form.destination, MAX_DESTINATION_LENGTH, "도착역")) return; if (!validateLength(form.manager, MAX_MANAGER_LENGTH, "담당자")) return; if (!validateLength(form.memo, MAX_MEMO_LENGTH, "비고")) return; const payload = { ...form, id: form.id || crypto.randomUUID(), dateKey, direction: getDirection(form.trainNo), contactDone: form.contactDone || false, destination: form.boarding === "하차" ? "익산" : form.destination }; if (form.id) { updateRecord(form.id, payload); } else { addRecord(payload); } setSelectedId(null); setForm(emptyForm); };
+  const submit = (e) => { 
+    e.preventDefault(); 
+    if (!trainTimes[form.trainNo]) { alert("기존 파일에 등록된 열차번호만 입력할 수 있습니다."); return; } 
+    if (!validateLength(form.destination, MAX_DESTINATION_LENGTH, "도착역")) return; 
+    if (!validateLength(form.manager, MAX_MANAGER_LENGTH, "담당자")) return; 
+    if (!validateLength(form.memo, MAX_MEMO_LENGTH, "비고")) return; 
+    const latestRecord = form.id
+      ? (recordsState.allRecords || []).find((item) => item.id === form.id)
+      : null;
+    const payload = { 
+      ...form, 
+      id: form.id || crypto.randomUUID(), 
+      dateKey, 
+      direction: getDirection(form.trainNo), 
+      contactDone: form.id
+        ? latestRecord?.contactDone || false
+        : false,
+      destination: form.boarding === "하차" ? "익산" : form.destination 
+    }; 
+    if (form.id) { updateRecord(form.id, payload); } else { addRecord(payload); } setSelectedId(null); setForm(emptyForm); };
   const selectItem = (item) => { setSelectedId(item.id); setForm(item); };
   const deleteItem = (id) => { deleteRecord(id); setContextMenu(null); if (selectedId === id) { setSelectedId(null); setForm(emptyForm); } };
   const toggleContact = (id) => {
