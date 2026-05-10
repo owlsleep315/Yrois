@@ -15,12 +15,13 @@ const StationAutocompleteInput = forwardRef(function StationAutocompleteInput(
   ref
 ) {
   const [isComposing, setIsComposing] = useState(false);
+  const [compositionTick, setCompositionTick] = useState(0);
 
   const suggestion = useMemo(() => {
     if (!value || isComposing || props.readOnly || props.disabled) return "";
     const matches = stations.filter((station) => station.startsWith(value));
     return matches.length === 1 ? matches[0] : "";
-  }, [isComposing, props.disabled, props.readOnly, stations, value]);
+  }, [compositionTick, isComposing, props.disabled, props.readOnly, stations, value]);
 
   const ghostSuffix = suggestion && suggestion.length > value.length ? suggestion.slice(value.length) : "";
 
@@ -43,6 +44,9 @@ const StationAutocompleteInput = forwardRef(function StationAutocompleteInput(
         onCompositionEnd={(event) => {
           setIsComposing(false);
           onCompositionEnd?.(event);
+          requestAnimationFrame(() => {
+            setCompositionTick((tick) => tick + 1);
+          });
         }}
         onBlur={(event) => {
           commitSuggestion();
@@ -60,7 +64,7 @@ const StationAutocompleteInput = forwardRef(function StationAutocompleteInput(
       {ghostSuffix && (
         <span className="station-autocomplete-ghost">
           <span className="station-autocomplete-hidden">{value}</span>
-          <span>{ghostSuffix}</span>
+          <span className="station-autocomplete-suffix">{ghostSuffix}</span>
         </span>
       )}
     </div>

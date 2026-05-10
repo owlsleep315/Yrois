@@ -343,8 +343,8 @@
 
 .station-autocomplete-input input {
   position: relative;
-  z-index: 2;
-  background: transparent;
+  z-index: 1;
+  background: #fff;
   width: 100%;
   box-sizing: border-box;
 }
@@ -368,11 +368,16 @@
   color: #98a2b3;
   font-size: 14px;
   font-weight: 700;
+  line-height: 38px;
   pointer-events: none;
   white-space: nowrap;
   overflow: hidden;
   box-sizing: border-box;
-  z-index: 1;
+  z-index: 2;
+}
+
+.station-autocomplete-suffix {
+  margin-left: 3px;
 }
 
 .memo-field {
