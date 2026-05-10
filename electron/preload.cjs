@@ -7,6 +7,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   updateRecord: (id, updates) => ipcRenderer.invoke('records:update', { id, updates }),
   deleteRecord: (id) => ipcRenderer.invoke('records:delete', id),
   getTrainTimes: () => ipcRenderer.invoke('trainTimes:get'),
+  getStations: () => ipcRenderer.invoke('stations:get'),
   subscribeRecords: (callback) => {
     const handler = (_event, payload) => callback(payload);
     ipcRenderer.on('records:changed', handler);
