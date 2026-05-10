@@ -337,17 +337,25 @@
 
 .station-autocomplete-input {
   position: relative;
+  width: 100%;
+  min-width: 0;
 }
 
 .station-autocomplete-input input {
   position: relative;
   z-index: 2;
   background: transparent;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .station-autocomplete-input input:read-only,
 .station-autocomplete-input input:disabled {
   background: #eef2f7;
+}
+
+.station-autocomplete-hidden {
+  visibility: hidden;
 }
 
 .station-autocomplete-ghost {
@@ -356,8 +364,6 @@
   display: flex;
   align-items: center;
   height: 38px;
-  border: 1px solid transparent;
-  border-radius: 8px;
   padding: 0 10px;
   color: #98a2b3;
   font-size: 14px;
@@ -365,6 +371,8 @@
   pointer-events: none;
   white-space: nowrap;
   overflow: hidden;
+  box-sizing: border-box;
+  z-index: 1;
 }
 
 .memo-field {
