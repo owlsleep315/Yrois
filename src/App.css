@@ -381,23 +381,22 @@
 .rainbow-text {
   background: linear-gradient(
     90deg,
-    #ff0000,
-    #ff9900,
-    #ffee00,
-    #33ff00,
-    #00ffee,
-    #0066ff,
-    #aa00ff,
-    #ff0066
+    #ff005d 0%,
+    #ff7a00 14%,
+    #ffe600 28%,
+    #66ff00 42%,
+    #00ffd5 56%,
+    #00a2ff 70%,
+    #b300ff 84%,
+    #ff00c8 100%
   );
-
-  background-size: 400% 100%;
+  background-size: 220% 100%;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 
   animation:
-    rainbow-flow 4s linear infinite,
-    rainbow-glow 1.5s ease-in-out infinite alternate;
+    rainbow-flow 2.2s linear infinite,
+    rainbow-glow 1.4s ease-in-out infinite alternate;
 
   font-weight: 900;
 }
@@ -408,7 +407,7 @@
   }
 
   100% {
-    background-position: 400% 50%;
+    background-position: 220% 50%;
   }
 }
 
@@ -416,13 +415,15 @@
   from {
     filter:
       drop-shadow(0 0 2px #fff)
-      drop-shadow(0 0 6px #ff00ff);
+      drop-shadow(0 0 8px #ff00ff)
+      drop-shadow(0 0 16px #00f6ff);
   }
 
   to {
     filter:
-      drop-shadow(0 0 6px #fff)
-      drop-shadow(0 0 20px #00ffff);
+      drop-shadow(0 0 8px #fff)
+      drop-shadow(0 0 16px #ff5cf4)
+      drop-shadow(0 0 28px #00ffff);
   }
 }
 
