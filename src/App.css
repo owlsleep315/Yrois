@@ -8,6 +8,7 @@
   --panel: #ffffff;
   --soft: #eef2f7;
   --danger: #c0392b;
+  --success: #2e7d32;
 }
 
 * {
@@ -64,12 +65,31 @@
   color: #fff;
   font-weight: 800;
   cursor: pointer;
+  transition: background-color 0.2s ease, filter 0.2s ease, opacity 0.2s ease;
+}
+
+.btn:hover:not(:disabled) {
+  filter: brightness(0.92);
+}
+
+.btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
+.btn:disabled:hover {
+  filter: none;
 }
 
 .btn.light,
 .btn.sub {
   background: #eef4fb;
   color: #003d75;
+}
+
+.btn.success {
+  background: var(--success);
+  color: #fff;
 }
 
 .btn.light {
@@ -141,6 +161,7 @@
 
 .table tbody tr {
   cursor: pointer;
+  transition: background-color 0.2s ease, filter 0.2s ease, opacity 0.2s ease;
 }
 
 .table tbody tr:hover td {
@@ -159,9 +180,6 @@
   background: #dbeafe !important;
 }
 
-.past {
-  opacity: 0.35;
-}
 
 .train-no {
   font-weight: 900;
@@ -332,6 +350,20 @@
   font-weight: 900;
   box-shadow: 0 10px 22px rgba(15, 23, 42, 0.2);
   cursor: pointer;
+  transition: background-color 0.2s ease, filter 0.2s ease, opacity 0.2s ease;
+}
+
+.btn:hover:not(:disabled) {
+  filter: brightness(0.92);
+}
+
+.btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
+.btn:disabled:hover {
+  filter: none;
 }
 
 @media (max-width: 1180px) {
@@ -451,4 +483,18 @@
 .display-page .seat-no {
   font-size: 0.78em;
   vertical-align: middle;
+}
+
+
+.context-delete {
+  transition: background-color 0.2s ease, filter 0.2s ease;
+}
+
+.context-delete:hover {
+  filter: brightness(0.92);
+}
+
+.display-page .contact input {
+  width: clamp(28px, 1.8vw, 42px);
+  height: clamp(28px, 1.8vw, 42px);
 }

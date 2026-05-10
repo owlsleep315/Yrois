@@ -36,6 +36,13 @@ function safeQuit() {
   app.quit();
 }
 
+function normalizeRecord(record) {
+  return {
+    ...record,
+    completed: record?.completed === true,
+  };
+}
+
 const state = {
   dateKey: formatDateKey(new Date()),
   trainTimes: {},
@@ -78,12 +85,12 @@ function setupIpcHandlers() {
     return getStatePayload();
   });
   ipcMain.handle('records:add', (_event, record) => {
-    state.allRecords = [...state.allRecords, record];
+    state.allRecords = [...state.allRecords, normalizeRecord(record)];
     return persistAndBroadcast([record.dateKey]);
   });
   ipcMain.handle('records:update', (_event, { id, updates }) => {
     const previous = state.allRecords.find((item) => item.id === id);
-    state.allRecords = state.allRecords.map((item) => (item.id === id ? { ...item, ...updates } : item));
+    state.allRecords = state.allRecords.map((item) => (item.id === id ? normalizeRecord({ ...item, ...updates }) : item));
     const current = state.allRecords.find((item) => item.id === id);
     return persistAndBroadcast([previous?.dateKey, current?.dateKey]);
   });
@@ -125,7 +132,7 @@ function createWindows() {
     width: 1200,
     height: 800,
     icon: APP_ICON_PATH,
-    title: '승하차 보조 등록 화면',
+    title: 'Yrois Main',
     webPreferences: { preload: PRELOAD_PATH, contextIsolation: true, nodeIntegration: false },
   });
 
@@ -135,7 +142,7 @@ function createWindows() {
     width: secondaryDisplay.bounds.width,
     height: secondaryDisplay.bounds.height,
     icon: APP_ICON_PATH,
-    title: '승하차 보조 표시 화면',
+    title: 'Yrois Display',
     fullscreen: true,
     autoHideMenuBar: true,
     webPreferences: { preload: PRELOAD_PATH, contextIsolation: true, nodeIntegration: false },
@@ -170,7 +177,7 @@ app.whenReady().then(() => {
   recordStore = createRecordStore(getAppBasePath());
   const loaded = recordStore.initStore();
   state.trainTimes = loaded.trainTimes;
-  state.allRecords = loaded.allRecords;
+  state.allRecords = (loaded.allRecords || []).map(normalizeRecord);
   setupIpcHandlers();
   createWindows();
 });
