@@ -94,15 +94,15 @@ function escapeCsv(value) {
 }
 
 function makeCsv(records, dateKey) {
-  const headers = ['날짜', '방향', '열차번호', '도착시간', '호차', '좌석', '구분', '하차역', '담당자', '비고'];
+  const headers = ['날짜', '열차번호', '도착시간', '승하차', '호차', '좌석', '분류', '도착역', '담당자', '비고'];
   const rows = records
     .filter((r) => r.dateKey === dateKey)
     .sort((a, b) => String(a.arrivalTime || '').localeCompare(String(b.arrivalTime || '')))
     .map((r) => [
       r.dateKey,
-      r.direction === 'up' ? '상선' : '하선',
       r.trainNo,
       r.arrivalTime,
+      r.boarding,
       r.carNo || '',
       r.seatNo || '',
       r.type || '',
