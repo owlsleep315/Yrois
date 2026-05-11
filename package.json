@@ -51,7 +51,7 @@
     ],
     "win": {
       "target": "nsis",
-      "icon": "public/yrois_logo.png"
+      "icon": "public/yrois_logo.ico"
     },
     "nsis": {
       "oneClick": false,
