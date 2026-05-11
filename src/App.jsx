@@ -9,7 +9,7 @@ const BOARDING_TYPES = ["승차", "하차"];
 const MAX_DESTINATION_LENGTH = 6;
 const MAX_MANAGER_LENGTH = 6;
 const MAX_MEMO_LENGTH = 50;
-const DEFAULT_STATIONS = ["익산", "전주", "정읍", "광주송정", "목포", "오송", "천안아산", "대전", "동대구", "부산", "용산", "서울"];
+const DEFAULT_STATIONS = ["광주송정", "천안아산", "인천공항", "온양온천", "여수EXPO"];
 
 const KOREAN_TO_QWERTY = {
   ㅂ: "Q", ㅈ: "W", ㄷ: "E", ㄱ: "R", ㅅ: "T", ㅛ: "Y", ㅕ: "U", ㅑ: "I", ㅐ: "O", ㅔ: "P",
