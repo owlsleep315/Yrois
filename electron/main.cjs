@@ -5,7 +5,7 @@ const { createRecordStore } = require('./recordFileStore.cjs');
 
 const isDev = !app.isPackaged;
 const DEV_SERVER_URL = process.env.VITE_DEV_SERVER_URL || 'http://localhost:5173';
-const APP_ICON_PATH = path.join(__dirname, '../public/yrois_logo.ico');
+const APP_ICON_PATH = path.join(__dirname, '../public/yrois_logo.png');
 const PRELOAD_PATH = path.join(__dirname, 'preload.cjs');
 const RENDERER_INDEX_PATH = path.join(__dirname, '../dist/index.html');
 

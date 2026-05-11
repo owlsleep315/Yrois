@@ -39,6 +39,7 @@
     "appId": "com.yrois.app",
     "productName": "Yrois",
     "directories": {
+      "buildResources": "public",
       "output": "release"
     },
     "files": [
@@ -50,14 +51,14 @@
     ],
     "win": {
       "target": "nsis",
-      "icon": "public/yrois_logo.ico"
+      "icon": "public/yrois_logo.png"
     },
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "YROIS",
+      "shortcutName": "Yrois",
       "perMachine": false,
       "allowElevation": true
     }
