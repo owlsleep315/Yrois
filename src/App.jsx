@@ -193,6 +193,10 @@ function DisplayPage({ recordsState }) {
   const visibleItems = useVisibleItems(recordsState, now);
   const upItems = visibleItems.filter((item) => item.direction === "up");
   const downItems = visibleItems.filter((item) => item.direction === "down");
+  const isDisplayDataEmpty = upItems.length === 0 && downItems.length === 0;
+
+  if (isDisplayDataEmpty) return <div className="display-empty-blackout" aria-hidden="true" />;
+
   return <BoardLayout upItems={upItems} downItems={downItems} />;
 }
 

@@ -543,3 +543,9 @@
   justify-content: flex-end;
   margin-top: 10px;
 }
+
+.display-empty-blackout {
+  width: 100vw;
+  height: 100vh;
+  background: #000000;
+}
