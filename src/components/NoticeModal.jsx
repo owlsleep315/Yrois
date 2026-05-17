@@ -1,11 +1,11 @@
 import { useEffect, useRef } from "react";
 
-export default function NoticeModal({ open, title = "알림", message, confirmLabel = "확인", onClose }) {
+export default function NoticeModal({ open, message, confirmLabel = "확인", onClose }) {
   const closeButtonRef = useRef(null);
 
   useEffect(() => {
     if (!open) return undefined;
-    const frameId = requestAnimationFrame(() => closeButtonRef.current?.focus());
+    const frameId = requestAnimationFrame(() => closeButtonRef.current?.unfocus());
     const onKeyDown = (event) => {
       if (event.key === "Enter" || event.key === "Escape") {
         event.preventDefault();
@@ -27,11 +27,9 @@ export default function NoticeModal({ open, title = "알림", message, confirmLa
         className="notice-modal"
         role="dialog"
         aria-modal="true"
-        aria-labelledby="notice-modal-title"
         aria-describedby="notice-modal-message"
         onClick={(event) => event.stopPropagation()}
       >
-        <h3 id="notice-modal-title">{title}</h3>
         <p id="notice-modal-message">{message}</p>
         <div className="notice-modal-actions">
           <button ref={closeButtonRef} className="btn" type="button" onClick={onClose}>

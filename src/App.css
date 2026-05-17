@@ -530,17 +530,10 @@
   box-shadow: 0 16px 40px rgba(15, 23, 42, 0.18);
 }
 
-.notice-modal h3 {
-  margin: 0;
-  font-size: 20px;
-  font-weight: 900;
-  color: #1f3a5f;
-}
-
 .notice-modal p {
   margin: 10px 0 0;
   color: #344054;
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 700;
   line-height: 1.45;
 }
@@ -548,5 +541,5 @@
 .notice-modal-actions {
   display: flex;
   justify-content: flex-end;
-  margin-top: 18px;
+  margin-top: 10px;
 }
