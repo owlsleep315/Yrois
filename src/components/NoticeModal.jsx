@@ -5,7 +5,7 @@ export default function NoticeModal({ open, message, confirmLabel = "확인", on
 
   useEffect(() => {
     if (!open) return undefined;
-    const frameId = requestAnimationFrame(() => closeButtonRef.current?.unfocus());
+    const frameId = requestAnimationFrame(() => closeButtonRef.current?.focus());
     const onKeyDown = (event) => {
       if (event.key === "Enter" || event.key === "Escape") {
         event.preventDefault();
