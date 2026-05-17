@@ -155,7 +155,13 @@ function AdminPage({ recordsState, dateKey, changeDateKey, trainTimes, stations 
   const submit = (e) => { 
     e.preventDefault(); 
     if (!trainTimes[form.trainNo]) {
-      openNotice("유효한 열차 번호를 입력해주세요.", () => trainNoInputRef.current?.focus());
+      openNotice("유효한 열차 번호를 입력해주세요.", () => {
+        setForm((prev) => ({
+          ...prev,
+          trainNo: "",
+        }))
+        trainNoInputRef.current?.focus();
+      });  
       return;
     } 
     if (!validateLength(form.destination, MAX_DESTINATION_LENGTH, "도착역")) return; 
