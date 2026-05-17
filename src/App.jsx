@@ -3,6 +3,7 @@ import { addRecord, deleteRecord, getRecordsState, getStations, setDateKey as up
 import { Navigate, Route, Routes } from "react-router-dom";
 import "./App.css";
 import StationAutocompleteInput from "./components/StationAutocompleteInput";
+import NoticeModal from "./components/NoticeModal";
 
 const TYPES = ["리프트", "휠프트", "휠필", "시각(남)", "시각(여)", "유실물", "역물품", "승하차도움"];
 const BOARDING_TYPES = ["승차", "하차"];
@@ -114,6 +115,8 @@ function AdminPage({ recordsState, dateKey, changeDateKey, trainTimes, stations 
   const [form, setForm] = useState(emptyForm);
   const [selectedId, setSelectedId] = useState(null);
   const [contextMenu, setContextMenu] = useState(null);
+  const [notice, setNotice] = useState({ open: false, message: "" });
+  const trainNoInputRef = useRef(null);
   const now = useNowTick();
 
   // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -135,10 +138,26 @@ function AdminPage({ recordsState, dateKey, changeDateKey, trainTimes, stations 
   const downItems = visibleItems.filter((item) => item.direction === "down");
 
   const updateForm = (name, value) => { setForm((prev) => { const next = { ...prev, [name]: value }; if (name === "trainNo") { const clean = value.replace(/\D/g, ""); next.trainNo = clean; next.arrivalTime = trainTimes[clean] || ""; } if (name === "boarding" && value === "하차") { next.destination = "익산"; next.seatNo = ""; } if (name === "boarding" && value === "승차" && prev.destination === "익산") next.destination = ""; if (name === "type" && (value === "유실물" || value === "역물품")) next.seatNo = ""; if (name === "carNo") { const n = Number(value); next.carNo = value === "" ? "" : Math.min(18, Math.max(1, n)); } return next; }); };
-  const validateLength = (value, max, label) => { if ((value || "").length > max) { alert(`${label}은(는) 최대 ${max}자까지 입력할 수 있습니다.`); return false; } return true; };
+  const openNotice = (message, afterClose) => setNotice({ open: true, message, afterClose });
+  const closeNotice = () => {
+    const callback = notice.afterClose;
+    setNotice({ open: false, message: "" });
+    if (typeof callback === "function") requestAnimationFrame(() => callback());
+  };
+
+  const validateLength = (value, max, label) => {
+    if ((value || "").length > max) {
+      openNotice(`${label}은(는) 최대 ${max}자까지 입력할 수 있습니다.`);
+      return false;
+    }
+    return true;
+  };
   const submit = (e) => { 
     e.preventDefault(); 
-    if (!trainTimes[form.trainNo]) { alert("기존 파일에 등록된 열차번호만 입력할 수 있습니다."); return; } 
+    if (!trainTimes[form.trainNo]) {
+      openNotice("유효한 열차 번호를 입력해주세요.", () => trainNoInputRef.current?.focus());
+      return;
+    } 
     if (!validateLength(form.destination, MAX_DESTINATION_LENGTH, "도착역")) return; 
     if (!validateLength(form.manager, MAX_MANAGER_LENGTH, "담당자")) return; 
     if (!validateLength(form.memo, MAX_MEMO_LENGTH, "비고")) return; 
@@ -165,7 +184,7 @@ function AdminPage({ recordsState, dateKey, changeDateKey, trainTimes, stations 
     const target = (recordsState.allRecords || []).find((item) => item.id === id);
     if (target) updateRecord(id, { contactDone: !target.contactDone });
   };
-  return <BoardLayout adminMode {...{ dateKey, changeDateKey, selectedId, setSelectedId, setForm, contextMenu, setContextMenu, upItems, downItems, submit, form, updateForm, selectItem, toggleContact, deleteItem, stations }} />;
+  return <BoardLayout adminMode {...{ dateKey, changeDateKey, selectedId, setSelectedId, setForm, contextMenu, setContextMenu, upItems, downItems, submit, form, updateForm, selectItem, toggleContact, deleteItem, stations, trainNoInputRef, notice, closeNotice }} />;
 }
 
 function DisplayPage({ recordsState }) {
@@ -218,7 +237,7 @@ function useVisibleItems(recordsState, now) {
   }, [recordsState, now]);
 }
 
-function BoardLayout({ adminMode = false, dateKey, changeDateKey, selectedId, setSelectedId, setForm, contextMenu, setContextMenu, upItems, downItems, submit, form, updateForm, selectItem, toggleContact, deleteItem, stations = [] }) {
+function BoardLayout({ adminMode = false, dateKey, changeDateKey, selectedId, setSelectedId, setForm, contextMenu, setContextMenu, upItems, downItems, submit, form, updateForm, selectItem, toggleContact, deleteItem, stations = [], trainNoInputRef, notice, closeNotice }) {
   const pageClassName = adminMode ? "app" : "app display-page";
   const mockClassName = adminMode ? "mock" : "mock display-mock";
   const layoutClassName = adminMode ? "layout split" : "layout split display-split";
@@ -247,7 +266,9 @@ function BoardLayout({ adminMode = false, dateKey, changeDateKey, selectedId, se
     return () => document.removeEventListener("pointerdown", onPointerDown);
   }, [adminMode, contextMenu, setContextMenu]);
 
-  return <div className={pageClassName}><div className={mockClassName}>{adminMode && <header className="toolbar"><div className="date-nav"><button className="btn light" onClick={() => changeDateKey(addDate(dateKey, -1))}>&lt;</button><div className="date-pill">{formatDateLabel(dateKey)}</div><button className="btn light" onClick={() => changeDateKey(addDate(dateKey, 1))}>&gt;</button></div></header>}<main className={layoutClassName}><div className={adminMode ? "" : "display-board-pane"}><Board title="상선" items={upItems} selectedId={selectedId} onSelect={selectItem} onContext={(e, item) => { if (!adminMode) return; e.preventDefault(); setContextMenu({ x: e.clientX, y: e.clientY, id: item.id }); }} onToggleContact={toggleContact} readonly={!adminMode} /></div><div className={adminMode ? "" : "display-board-pane"}><Board title="하선" items={downItems} selectedId={selectedId} onSelect={selectItem} onContext={(e, item) => { if (!adminMode) return; e.preventDefault(); setContextMenu({ x: e.clientX, y: e.clientY, id: item.id }); }} onToggleContact={toggleContact} readonly={!adminMode} /></div></main>{adminMode && <form className="formbar" onSubmit={submit}><Field label="열차번호"><input value={form.trainNo} onChange={(e) => updateForm("trainNo", e.target.value)} /></Field><Field label="도착시간"><input value={form.arrivalTime} readOnly placeholder="자동입력" /></Field><Field label="승하차"><select value={form.boarding} onChange={(e) => updateForm("boarding", e.target.value)}>{BOARDING_TYPES.map((v) => <option key={v}>{v}</option>)}</select></Field><Field label="호차"><input type="number" min="1" max="18" value={form.carNo} onChange={(e) => updateForm("carNo", e.target.value)} /></Field><Field label="좌석"><input value={form.seatNo} onChange={(e) => updateForm("seatNo", normalizeSeatInput(e.target.value))} disabled={form.boarding === "하차" || form.type === "유실물" || form.type === "역물품"} /></Field><Field label="분류"><select value={form.type} onChange={(e) => updateForm("type", e.target.value)}>{TYPES.map((v) => <option key={v}>{v}</option>)}</select></Field><Field label="도착역"><StationAutocompleteInput value={form.destination} onChange={(e) => updateForm("destination", e.target.value)} maxLength={MAX_DESTINATION_LENGTH} readOnly={form.boarding === "하차"} stations={stations} /></Field><Field label="담당자"><input value={form.manager} onChange={(e) => updateForm("manager", e.target.value)} maxLength={MAX_MANAGER_LENGTH} /></Field><Field label="비고" className="field-wide"><input value={form.memo} onChange={(e) => updateForm("memo", e.target.value)} maxLength={MAX_MEMO_LENGTH} /></Field><div className="form-actions"><button className="btn" type="submit">{form.id ? "수정" : "등록"}</button>{form.id ? <button className="btn success" type="button" onClick={() => { updateRecord(form.id, { completed: true }); setForm(emptyForm); setSelectedId(null); }}>완료</button> : <button className="btn sub" type="button" onClick={() => { setForm(emptyForm); setSelectedId(null); }}>초기화</button>}</div></form>}</div>{adminMode && contextMenu && <button ref={contextMenuRef} className="context-delete" style={{ left: contextMenu.x, top: contextMenu.y }} onClick={() => deleteItem(contextMenu.id)}>삭제</button>}</div>;
+  return <div className={pageClassName}><div className={mockClassName}>{adminMode && <header className="toolbar"><div className="date-nav"><button className="btn light" onClick={() => changeDateKey(addDate(dateKey, -1))}>&lt;</button><div className="date-pill">{formatDateLabel(dateKey)}</div><button className="btn light" onClick={() => changeDateKey(addDate(dateKey, 1))}>&gt;</button></div></header>}<main className={layoutClassName}><div className={adminMode ? "" : "display-board-pane"}><Board title="상선" items={upItems} selectedId={selectedId} onSelect={selectItem} onContext={(e, item) => { if (!adminMode) return; e.preventDefault(); setContextMenu({ x: e.clientX, y: e.clientY, id: item.id }); }} onToggleContact={toggleContact} readonly={!adminMode} /></div><div className={adminMode ? "" : "display-board-pane"}><Board title="하선" items={downItems} selectedId={selectedId} onSelect={selectItem} onContext={(e, item) => { if (!adminMode) return; e.preventDefault(); setContextMenu({ x: e.clientX, y: e.clientY, id: item.id }); }} onToggleContact={toggleContact} readonly={!adminMode} /></div></main>{adminMode && <form className="formbar" onSubmit={submit}><Field label="열차번호"><input ref={trainNoInputRef} value={form.trainNo} onChange={(e) => updateForm("trainNo", e.target.value)} /></Field><Field label="도착시간"><input value={form.arrivalTime} readOnly placeholder="자동입력" /></Field><Field label="승하차"><select value={form.boarding} onChange={(e) => updateForm("boarding", e.target.value)}>{BOARDING_TYPES.map((v) => <option key={v}>{v}</option>)}</select></Field><Field label="호차"><input type="number" min="1" max="18" value={form.carNo} onChange={(e) => updateForm("carNo", e.target.value)} /></Field><Field label="좌석"><input value={form.seatNo} onChange={(e) => updateForm("seatNo", normalizeSeatInput(e.target.value))} disabled={form.boarding === "하차" || form.type === "유실물" || form.type === "역물품"} /></Field><Field label="분류"><select value={form.type} onChange={(e) => updateForm("type", e.target.value)}>{TYPES.map((v) => <option key={v}>{v}</option>)}</select></Field><Field label="도착역"><StationAutocompleteInput value={form.destination} onChange={(e) => updateForm("destination", e.target.value)} maxLength={MAX_DESTINATION_LENGTH} readOnly={form.boarding === "하차"} stations={stations} /></Field><Field label="담당자"><input value={form.manager} onChange={(e) => updateForm("manager", e.target.value)} maxLength={MAX_MANAGER_LENGTH} /></Field><Field label="비고" className="field-wide"><input value={form.memo} onChange={(e) => updateForm("memo", e.target.value)} maxLength={MAX_MEMO_LENGTH} /></Field><div className="form-actions"><button className="btn" type="submit">{form.id ? "수정" : "등록"}</button>{form.id ? <button className="btn success" type="button" onClick={() => { updateRecord(form.id, { completed: true }); setForm(emptyForm); setSelectedId(null); }}>완료</button> : <button className="btn sub" type="button" onClick={() => { setForm(emptyForm); setSelectedId(null); }}>초기화</button>}</div></form>}</div>{adminMode && contextMenu && <button ref={contextMenuRef} className="context-delete" style={{ left: contextMenu.x, top: contextMenu.y }} onClick={() => deleteItem(contextMenu.id)}>삭제</button>}
+{adminMode && <NoticeModal open={notice?.open} message={notice?.message} onClose={closeNotice} />}
+</div>;
 }
 
 
