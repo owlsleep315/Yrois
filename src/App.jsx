@@ -35,7 +35,7 @@ function addDate(dateKey, amount) { const date = parseDateKey(dateKey); date.set
 function getDirection(trainNo) { return Number(trainNo) % 2 === 0 ? "up" : "down"; }
 function getSeatDisplay(carNo, seatNo) { if (!carNo) return "-"; return <><span className="circle">{carNo}</span>{seatNo && <span className="seat-no">{seatNo}</span>}</>; }
 function normalizeSeatInput(value = "") {
-  // 좌석 입력 필드에서 한글 자판 오입력을 영문 대문자로 보정합니다.
+  // 좌석 입력 필드에서 한글 자판 입력을 영문 대문자로 보정
   return Array.from(value).map((char) => KOREAN_TO_QWERTY[char] || char.toUpperCase()).join("");
 }
 const emptyForm = { id: null, trainNo: "", arrivalTime: "", boarding: "승차", carNo: "", seatNo: "", type: "리프트", destination: "", manager: "", memo: "" };
