@@ -195,6 +195,7 @@ function DisplayPage({ recordsState }) {
   const downItems = visibleItems.filter((item) => item.direction === "down");
   const isDisplayDataEmpty = upItems.length === 0 && downItems.length === 0;
 
+  // 상선, 하선 모두 0건 일시 display에는 검정화면 표시(번인 방지)
   if (isDisplayDataEmpty) return <div className="display-empty-blackout" aria-hidden="true" />;
 
   return <BoardLayout upItems={upItems} downItems={downItems} />;
