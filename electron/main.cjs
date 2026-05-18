@@ -69,6 +69,7 @@ const state = {
   allRecords: [],
   stations: [],
   undoStack: [],
+  redoStack: [],
 };
 const MAX_UNDO_STACK_SIZE = 10;
 
@@ -83,6 +84,13 @@ function pushUndoSnapshot() {
   }
 }
 
+function pushRedoSnapshot() {
+  state.redoStack.push(cloneRecords(state.allRecords));
+  if (state.redoStack.length > MAX_UNDO_STACK_SIZE) {
+    state.redoStack.shift();
+  }
+}
+
 function getStatePayload() {
   return {
     dateKey: state.dateKey,
@@ -91,6 +99,7 @@ function getStatePayload() {
     records: state.allRecords.filter((item) => item.dateKey === state.dateKey),
     stations: state.stations,
     canUndo: state.undoStack.length > 0,
+    canRedo: state.redoStack.length > 0,
   };
 }
 
@@ -117,11 +126,13 @@ function setupIpcHandlers() {
   ipcMain.handle('records:getState', () => getStatePayload());
   ipcMain.handle('records:add', (_event, record) => {
     pushUndoSnapshot();
+    state.redoStack = [];
     state.allRecords = [...state.allRecords, normalizeRecord(record)];
     return persistAndBroadcast([record.dateKey]);
   });
   ipcMain.handle('records:update', (_event, { id, updates }) => {
     pushUndoSnapshot();
+    state.redoStack = [];
     const previous = state.allRecords.find((item) => item.id === id);
     state.allRecords = state.allRecords.map((item) => (item.id === id ? normalizeRecord({ ...item, ...updates }) : item));
     const current = state.allRecords.find((item) => item.id === id);
@@ -129,13 +140,23 @@ function setupIpcHandlers() {
   });
   ipcMain.handle('records:delete', (_event, id) => {
     pushUndoSnapshot();
+    state.redoStack = [];
     const target = state.allRecords.find((item) => item.id === id);
     state.allRecords = state.allRecords.filter((item) => item.id !== id);
     return persistAndBroadcast([target?.dateKey]);
   });
   ipcMain.handle('records:undo', () => {
     if (state.undoStack.length === 0) return getStatePayload();
+    pushRedoSnapshot();
     const snapshot = state.undoStack.pop();
+    state.allRecords = cloneRecords(snapshot);
+    const changedDateKeys = [...new Set(state.allRecords.map((item) => item.dateKey).filter(Boolean))];
+    return persistAndBroadcast(changedDateKeys);
+  });
+  ipcMain.handle('records:redo', () => {
+    if (state.redoStack.length === 0) return getStatePayload();
+    pushUndoSnapshot();
+    const snapshot = state.redoStack.pop();
     state.allRecords = cloneRecords(snapshot);
     const changedDateKeys = [...new Set(state.allRecords.map((item) => item.dateKey).filter(Boolean))];
     return persistAndBroadcast(changedDateKeys);

@@ -1,6 +1,7 @@
-const memoryState = { dateKey: formatDateKey(new Date()), records: [], allRecords: [], trainTimes: {}, stations: [], canUndo: false };
+const memoryState = { dateKey: formatDateKey(new Date()), records: [], allRecords: [], trainTimes: {}, stations: [], canUndo: false, canRedo: false };
 const listeners = new Set();
 const undoStack = [];
+const redoStack = [];
 const MAX_UNDO_STACK_SIZE = 10;
 
 function formatDateKey(date) {
@@ -23,6 +24,7 @@ function normalizeRecord(record) {
 function deriveRecords() {
   memoryState.records = memoryState.allRecords.filter((item) => item.dateKey === memoryState.dateKey);
   memoryState.canUndo = undoStack.length > 0;
+  memoryState.canRedo = redoStack.length > 0;
 }
 
 function cloneRecords(records) {
@@ -43,6 +45,7 @@ export async function getRecordsState() {
 export async function addRecord(record) {
   if (isElectron()) return window.electronAPI.addRecord(record);
   pushUndoSnapshot();
+  redoStack.length = 0;
   memoryState.allRecords = [...memoryState.allRecords, normalizeRecord(record)];
   deriveRecords();
   emit(memoryState);
@@ -52,6 +55,7 @@ export async function addRecord(record) {
 export async function updateRecord(id, updates) {
   if (isElectron()) return window.electronAPI.updateRecord(id, updates);
   pushUndoSnapshot();
+  redoStack.length = 0;
   memoryState.allRecords = memoryState.allRecords.map((item) => (item.id === id ? normalizeRecord({ ...item, ...updates }) : item));
   deriveRecords();
   emit(memoryState);
@@ -61,6 +65,7 @@ export async function updateRecord(id, updates) {
 export async function deleteRecord(id) {
   if (isElectron()) return window.electronAPI.deleteRecord(id);
   pushUndoSnapshot();
+  redoStack.length = 0;
   memoryState.allRecords = memoryState.allRecords.filter((item) => item.id !== id);
   deriveRecords();
   emit(memoryState);
@@ -70,6 +75,8 @@ export async function deleteRecord(id) {
 export async function undoRecords() {
   if (isElectron()) return window.electronAPI.undoRecords();
   if (undoStack.length === 0) return memoryState;
+  redoStack.push(cloneRecords(memoryState.allRecords));
+  if (redoStack.length > MAX_UNDO_STACK_SIZE) redoStack.shift();
   memoryState.allRecords = cloneRecords(undoStack.pop());
   deriveRecords();
   emit(memoryState);
@@ -85,4 +92,14 @@ export function subscribeRecords(callback) {
 export async function getStations() {
   if (isElectron()) return window.electronAPI.getStations();
   return memoryState.stations;
+}
+
+export async function redoRecords() {
+  if (isElectron()) return window.electronAPI.redoRecords();
+  if (redoStack.length === 0) return memoryState;
+  pushUndoSnapshot();
+  memoryState.allRecords = cloneRecords(redoStack.pop());
+  deriveRecords();
+  emit(memoryState);
+  return memoryState;
 }

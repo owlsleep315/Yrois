@@ -46,6 +46,36 @@
 }
 
 
+
+.history-actions {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.history-btn {
+  width: 34px;
+  height: 34px;
+  border: none;
+  background: transparent;
+  color: #344054;
+  font-size: 22px;
+  font-weight: 900;
+  border-radius: 8px;
+  cursor: pointer;
+  line-height: 1;
+}
+
+.history-btn:hover:not(:disabled) {
+  background: rgba(52, 64, 84, 0.08);
+}
+
+.history-btn:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
 .date-nav {
   display: flex;
   align-items: center;
