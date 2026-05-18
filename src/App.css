@@ -62,7 +62,7 @@
   height: 34px;
   border: none;
   background: transparent;
-  color: #344054;
+  color: var(--ink);
   font-size: 22px;
   font-weight: 900;
   border-radius: 8px;
