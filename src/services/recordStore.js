@@ -11,7 +11,6 @@ function formatDateKey(date) {
 function emit(state) { for (const listener of listeners) listener(state); }
 function isElectron() { return typeof window !== 'undefined' && !!window.electronAPI; }
 
-
 function normalizeRecord(record) {
   return {
     ...record,
@@ -26,14 +25,6 @@ function deriveRecords() {
 export async function getRecordsState() {
   if (isElectron()) return window.electronAPI.getState();
   deriveRecords();
-  return memoryState;
-}
-
-export async function setDateKey(dateKey) {
-  if (isElectron()) return window.electronAPI.setDateKey(dateKey);
-  memoryState.dateKey = dateKey;
-  deriveRecords();
-  emit(memoryState);
   return memoryState;
 }
 
@@ -66,7 +57,6 @@ export function subscribeRecords(callback) {
   listeners.add(callback);
   return () => listeners.delete(callback);
 }
-
 
 export async function getStations() {
   if (isElectron()) return window.electronAPI.getStations();
