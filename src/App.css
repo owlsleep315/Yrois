@@ -48,10 +48,13 @@
 
 
 .history-actions {
-  margin-left: auto;
+  position: absolute;
+  right: 18px;
+  top: 50%;
+  transform: translateY(-50%);
+
   display: flex;
   align-items: center;
-  gap: 6px;
 }
 
 .history-btn {
@@ -65,6 +68,10 @@
   border-radius: 8px;
   cursor: pointer;
   line-height: 1;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .history-btn:hover:not(:disabled) {
@@ -74,6 +81,14 @@
 .history-btn:disabled {
   opacity: 0.3;
   cursor: default;
+}
+
+/* undo/redo 사이 수직 구분선 */
+.history-divider {
+  width: 1px;
+  height: 18px;
+  background: #d0d5dd;
+  margin: 0 2px;
 }
 
 .date-nav {
@@ -615,7 +630,10 @@
 }
 
 .today-btn {
-  margin-left: 8px;
+  position: absolute;
+  left: calc(50% + 120%);
+  top: 50%;
+  transform: translateY(-50%);
 }
 
 .display-page .empty-row {
