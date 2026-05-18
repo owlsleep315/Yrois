@@ -1,5 +1,7 @@
-const memoryState = { dateKey: formatDateKey(new Date()), records: [], allRecords: [], trainTimes: {}, stations: [] };
+const memoryState = { dateKey: formatDateKey(new Date()), records: [], allRecords: [], trainTimes: {}, stations: [], canUndo: false };
 const listeners = new Set();
+const undoStack = [];
+const MAX_UNDO_STACK_SIZE = 10;
 
 function formatDateKey(date) {
   const y = date.getFullYear();
@@ -20,6 +22,16 @@ function normalizeRecord(record) {
 
 function deriveRecords() {
   memoryState.records = memoryState.allRecords.filter((item) => item.dateKey === memoryState.dateKey);
+  memoryState.canUndo = undoStack.length > 0;
+}
+
+function cloneRecords(records) {
+  return JSON.parse(JSON.stringify(records || []));
+}
+
+function pushUndoSnapshot() {
+  undoStack.push(cloneRecords(memoryState.allRecords));
+  if (undoStack.length > MAX_UNDO_STACK_SIZE) undoStack.shift();
 }
 
 export async function getRecordsState() {
@@ -30,6 +42,7 @@ export async function getRecordsState() {
 
 export async function addRecord(record) {
   if (isElectron()) return window.electronAPI.addRecord(record);
+  pushUndoSnapshot();
   memoryState.allRecords = [...memoryState.allRecords, normalizeRecord(record)];
   deriveRecords();
   emit(memoryState);
@@ -38,6 +51,7 @@ export async function addRecord(record) {
 
 export async function updateRecord(id, updates) {
   if (isElectron()) return window.electronAPI.updateRecord(id, updates);
+  pushUndoSnapshot();
   memoryState.allRecords = memoryState.allRecords.map((item) => (item.id === id ? normalizeRecord({ ...item, ...updates }) : item));
   deriveRecords();
   emit(memoryState);
@@ -46,7 +60,17 @@ export async function updateRecord(id, updates) {
 
 export async function deleteRecord(id) {
   if (isElectron()) return window.electronAPI.deleteRecord(id);
+  pushUndoSnapshot();
   memoryState.allRecords = memoryState.allRecords.filter((item) => item.id !== id);
+  deriveRecords();
+  emit(memoryState);
+  return memoryState;
+}
+
+export async function undoRecords() {
+  if (isElectron()) return window.electronAPI.undoRecords();
+  if (undoStack.length === 0) return memoryState;
+  memoryState.allRecords = cloneRecords(undoStack.pop());
   deriveRecords();
   emit(memoryState);
   return memoryState;
