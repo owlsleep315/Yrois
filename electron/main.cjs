@@ -68,7 +68,20 @@ const state = {
   trainTimes: {},
   allRecords: [],
   stations: [],
+  undoStack: [],
 };
+const MAX_UNDO_STACK_SIZE = 10;
+
+function cloneRecords(records) {
+  return JSON.parse(JSON.stringify(records || []));
+}
+
+function pushUndoSnapshot() {
+  state.undoStack.push(cloneRecords(state.allRecords));
+  if (state.undoStack.length > MAX_UNDO_STACK_SIZE) {
+    state.undoStack.shift();
+  }
+}
 
 function getStatePayload() {
   return {
@@ -77,6 +90,7 @@ function getStatePayload() {
     allRecords: state.allRecords,
     records: state.allRecords.filter((item) => item.dateKey === state.dateKey),
     stations: state.stations,
+    canUndo: state.undoStack.length > 0,
   };
 }
 
@@ -102,19 +116,29 @@ function persistAndBroadcast(changedDates = []) {
 function setupIpcHandlers() {
   ipcMain.handle('records:getState', () => getStatePayload());
   ipcMain.handle('records:add', (_event, record) => {
+    pushUndoSnapshot();
     state.allRecords = [...state.allRecords, normalizeRecord(record)];
     return persistAndBroadcast([record.dateKey]);
   });
   ipcMain.handle('records:update', (_event, { id, updates }) => {
+    pushUndoSnapshot();
     const previous = state.allRecords.find((item) => item.id === id);
     state.allRecords = state.allRecords.map((item) => (item.id === id ? normalizeRecord({ ...item, ...updates }) : item));
     const current = state.allRecords.find((item) => item.id === id);
     return persistAndBroadcast([previous?.dateKey, current?.dateKey]);
   });
   ipcMain.handle('records:delete', (_event, id) => {
+    pushUndoSnapshot();
     const target = state.allRecords.find((item) => item.id === id);
     state.allRecords = state.allRecords.filter((item) => item.id !== id);
     return persistAndBroadcast([target?.dateKey]);
+  });
+  ipcMain.handle('records:undo', () => {
+    if (state.undoStack.length === 0) return getStatePayload();
+    const snapshot = state.undoStack.pop();
+    state.allRecords = cloneRecords(snapshot);
+    const changedDateKeys = [...new Set(state.allRecords.map((item) => item.dateKey).filter(Boolean))];
+    return persistAndBroadcast(changedDateKeys);
   });
   ipcMain.handle('trainTimes:get', () => state.trainTimes);
   ipcMain.handle('stations:get', () => state.stations);

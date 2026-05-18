@@ -5,6 +5,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   addRecord: (record) => ipcRenderer.invoke('records:add', record),
   updateRecord: (id, updates) => ipcRenderer.invoke('records:update', { id, updates }),
   deleteRecord: (id) => ipcRenderer.invoke('records:delete', id),
+  undoRecords: () => ipcRenderer.invoke('records:undo'),
   getTrainTimes: () => ipcRenderer.invoke('trainTimes:get'),
   getStations: () => ipcRenderer.invoke('stations:get'),
   subscribeRecords: (callback) => {
