@@ -631,7 +631,7 @@
 
 .today-btn {
   position: absolute;
-  left: calc(50% + 120%);
+  left: calc(50% + 210px);
   top: 50%;
   transform: translateY(-50%);
 }
