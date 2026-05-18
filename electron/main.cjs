@@ -90,7 +90,7 @@ function broadcastState() {
 function persistAndBroadcast(changedDates = []) {
   try {
     recordStore.persistRecords(state.allRecords);
-    for (const dateKey of new Set(changedDates.filter(Boolean))) recordStore.regenerateCsv(state.allRecords, dateKey);
+    recordStore.regenerateMonthlyXlsx(state.allRecords, changedDates);
   } catch (error) {
     console.error('Failed to persist records:', error);
     throw error;
@@ -101,11 +101,6 @@ function persistAndBroadcast(changedDates = []) {
 
 function setupIpcHandlers() {
   ipcMain.handle('records:getState', () => getStatePayload());
-  ipcMain.handle('records:setDateKey', (_event, dateKey) => {
-    state.dateKey = dateKey;
-    broadcastState();
-    return getStatePayload();
-  });
   ipcMain.handle('records:add', (_event, record) => {
     state.allRecords = [...state.allRecords, normalizeRecord(record)];
     return persistAndBroadcast([record.dateKey]);
