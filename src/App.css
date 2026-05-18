@@ -157,10 +157,45 @@
 .table td {
   font-size: clamp(15px, 1.45vw, 22px);
   font-weight: 750;
-  padding: 14px 10px;
+  padding: 12px 10px;
   border-bottom: 1px solid #e5eaf1;
   text-align: center;
   white-space: nowrap;
+  vertical-align: middle;
+}
+
+/* 텍스트 크기 보고 조정 필요 */
+/* 행 간격(패딩 값) 보고 조정 필요 */
+.display-page .table th {
+  font-size: clamp(18px, 1.25vw, 24px);
+  font-weight: 700;
+  padding: 12px 10px;
+}
+
+.display-page .table td {
+  font-size: clamp(24px, 2.1vw, 36px);
+  font-weight: 800;
+  padding: 18px 10px;
+}
+
+/* 비고 텍스트 보고 조정 필요 */
+ .memo-text {
+  font-size: clamp(14px, 1.3vw, 20px);
+  font-weight: 750;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  white-space: normal;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.2;
+  max-height: calc(1.2em * 3);
+  word-break: break-word;
+}
+
+.display-page .memo-text {
+  font-size: clamp(22px, 1.9vw, 32px);
+  font-weight: 800;
 }
 
 .table tr:nth-child(even) td {
@@ -205,32 +240,37 @@
   color: var(--danger);
 }
 
+/* 호차 원 크기 보고 조정 필요 */
 .circle {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
+
+  width: 1.5em;
+  min-width: 1.5em;
+  height: 1.5em;
+
   border: 2px solid var(--ink);
   border-radius: 50%;
+  border-width: 0.12em;
+
+  font-size: 1em;
   font-weight: 900;
-  margin-right: 4px;
+  line-height: 1;
+
+  margin-right: 0.2em;
+  box-sizing: border-box;
+  flex-shrink: 0;
 }
 
 .seat-no {
   font-size: 1em;
+  vertical-align: middle;
 }
 
- .memo-text {
-  display: -webkit-box;
-  -webkit-line-clamp: 3;
-  -webkit-box-orient: vertical;
-  white-space: normal;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  line-height: 1.2;
-  max-height: calc(1.2em * 3);
-  word-break: break-word;
+.display-page .seat-no {
+  font-size: 1em;
+  vertical-align: middle;
 }
 
 .contact {
@@ -239,10 +279,6 @@
   justify-content: center;
   width: 100%;
   height: 100%;
-}
-
-.table td {
-  vertical-align: middle;
 }
 
 .contact input {
@@ -492,35 +528,9 @@
   overflow: auto;
 }
 
-.display-page .table th {
-  font-size: clamp(18px, 1.25vw, 24px);
-  font-weight: 800;
-  padding: 12px 10px;
-}
-
-.display-page .table td {
-  font-size: clamp(24px, 2.1vw, 36px);
-  font-weight: 800;
-  padding: 18px 10px;
-}
-
 .display-page .small-text {
   font-size: 0.78em;
 }
-
-.display-page .circle {
-  width: 1.50em;
-  min-width: 1.50em;
-  height: 1.50em;
-  line-height: 1;
-  border-width: 0.12em;
-}
-
-.display-page .seat-no {
-  font-size: 1em;
-  vertical-align: middle;
-}
-
 
 .context-delete {
   transition: background-color 0.2s ease, filter 0.2s ease;
@@ -579,6 +589,6 @@
 }
 
 .display-page .empty-row {
-  font-size: clamp(24px, 2.2vw, 38px) !important;
-  font-weight: 800;
+  font-size: clamp(18px, 1.25vw, 24px) !important;
+  font-weight: 700;
 }
