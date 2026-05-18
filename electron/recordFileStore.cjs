@@ -47,7 +47,7 @@ function excelTimeToHHmm(value) {
   const asString = String(value).trim();
   if (!asString) return null;
   const normalized = asString.replace('.', ':');
-  const match = normalized.match(/^(\d{1,2})(?::(\d{1,2}))?$/);
+  const match = normalized.match(/^(\d{1,2})(?::(\d{1,2}))?(?::\d{1,2})?$/);
   if (!match) return null;
 
   const hours = Number(match[1]);
@@ -63,16 +63,19 @@ function loadTrainTimesFromExcel(filePath) {
 
   try {
     const workbook = XLSX.readFile(filePath, { cellDates: true });
-    const firstSheetName = workbook.SheetNames?.[0];
-    if (!firstSheetName) return {};
+    const sheetName = '열차시각표';
+    const sheet = workbook.Sheets[sheetName];
 
-    const sheet = workbook.Sheets[firstSheetName];
+    if (!sheet) {
+      console.error(`Sheet not found: ${sheetName}`);
+      return {};
+    }
     const rows = XLSX.utils.sheet_to_json(sheet, { defval: '' });
     const result = {};
 
     for (const row of rows) {
       const trainNoRaw = row['열차번호'];
-      const arrivalRaw = row['도착시간'];
+      const arrivalRaw = row['도착시각'];
       if (trainNoRaw == null || trainNoRaw === '' || arrivalRaw == null || arrivalRaw === '') continue;
 
       const trainNo = String(trainNoRaw).trim();
@@ -127,7 +130,7 @@ function getRecordsByCsvType(records, dateKey, csvType) {
 function createRecordStore(basePath) {
   const DATA_DIR = path.join(basePath, 'data');
   const EXPORTS_DIR = path.join(basePath, 'exports');
-  const TRAIN_TIMES_PATH = path.join(DATA_DIR, 'train-times.xlsx');
+  const TRAIN_TIMES_PATH = path.join(DATA_DIR, 'train-data.xlsm');
   const RECORDS_PATH = path.join(DATA_DIR, 'boarding-records.json');
 
   function initStore() {
